@@ -18,7 +18,11 @@ def gen_extractor_classes():
     """ Return a list of supported extractors.
     The order does matter; the first extractor matched is the one handling the URL.
     """
-    import_extractors()
+    if not _extractors_context.value:
+        from . import _extractors
+        for name, klass in _extractors.__dict__.items():
+            if name.endswith('IE') and isinstance(klass, type):
+                _extractors_context.value[name] = klass
     return list(_extractors_context.value.values())
 
 
