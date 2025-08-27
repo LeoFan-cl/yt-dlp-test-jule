@@ -3,7 +3,7 @@ from ..globals import extractors as _extractors_context
 from ..globals import plugin_ies as _plugin_ies_context
 from ..plugins import PluginSpec, register_plugin_spec
 
-passthrough_module(__name__, '.extractors')
+passthrough_module(__name__, '._extractors')
 del passthrough_module
 
 register_plugin_spec(PluginSpec(
@@ -31,12 +31,9 @@ def gen_extractors():
 
 def list_extractor_classes(age_limit=None):
     """Return a list of extractors that are suitable for the given age, sorted by extractor name"""
-    from .generic import GenericIE
-
     yield from sorted(filter(
-        lambda ie: ie.is_suitable(age_limit) and ie != GenericIE,
+        lambda ie: ie.is_suitable(age_limit),
         gen_extractor_classes()), key=lambda ie: ie.IE_NAME.lower())
-    yield GenericIE
 
 
 def list_extractors(age_limit=None):
@@ -51,4 +48,4 @@ def get_info_extractor(ie_name):
 
 
 def import_extractors():
-    from . import extractors  # noqa: F401
+    from . import _extractors  # noqa: F401

@@ -32,7 +32,7 @@ from .downloader import FFmpegFD, get_suitable_downloader, shorten_protocol_name
 from .downloader.rtmp import rtmpdump_version
 from .extractor import gen_extractor_classes, get_info_extractor, import_extractors
 from .extractor.common import UnsupportedURLIE
-from .extractor.openload import PhantomJSwrapper
+# from .extractor.openload import PhantomJSwrapper
 from .globals import (
     IN_CLI,
     LAZY_EXTRACTORS,
@@ -1210,7 +1210,7 @@ class YoutubeDL:
     def validate_outtmpl(cls, outtmpl):
         """ @return None or Exception object """
         outtmpl = re.sub(
-            STR_FORMAT_RE_TMPL.format('[^)]*', '[ljhqBUDS]'),
+            STR_FORMAT_RE_TMPL.format('[^)]*', f'[{STR_FORMAT_TYPES}ljhqBUDS]'),
             lambda mobj: f'{mobj.group(0)[:-1]}s',
             cls._outtmpl_expandpath(outtmpl))
         try:
@@ -3287,7 +3287,7 @@ class YoutubeDL:
             info_dict.clear()
             info_dict.update(new_info)
 
-        new_info, _ = self.pre_process(info_dict, 'video')
+        new_info, files_to_move = self.pre_process(info_dict, 'before_dl')
         replace_info_dict(new_info)
         self._num_downloads += 1
 
@@ -4100,7 +4100,7 @@ class YoutubeDL:
             exe_versions['ffmpeg'] += ' ({})'.format(','.join(sorted(ffmpeg_features)))
 
         exe_versions['rtmpdump'] = rtmpdump_version()
-        exe_versions['phantomjs'] = PhantomJSwrapper._version()
+        # exe_versions['phantomjs'] = PhantomJSwrapper._version()
         exe_str = ', '.join(
             f'{exe} {v}' for exe, v in sorted(exe_versions.items()) if v
         ) or 'none'

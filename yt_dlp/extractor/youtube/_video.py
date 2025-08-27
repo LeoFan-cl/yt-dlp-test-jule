@@ -28,7 +28,6 @@ from ._base import (
 )
 from .pot._director import initialize_pot_director
 from .pot.provider import PoTokenContext, PoTokenRequest
-from ..openload import PhantomJSwrapper
 from ...jsinterp import JSInterpreter, LocalNameSpace
 from ...networking.exceptions import HTTPError
 from ...utils import (
@@ -2232,23 +2231,8 @@ class YoutubeIE(YoutubeBaseInfoExtractor):
         if self.get_param('youtube_print_sig_code'):
             self.to_screen(f'Extracted nsig function from {player_id}:\n{func_code[1]}\n')
 
-        try:
-            extract_nsig = self._cached(self._extract_n_function_from_code, self._NSIG_FUNC_CACHE_ID, player_url)
-            ret = extract_nsig(jsi, func_code)(s)
-        except JSInterpreter.Exception as e:
-            try:
-                jsi = PhantomJSwrapper(self, timeout=5000)
-            except ExtractorError:
-                raise e
-            self.report_warning(
-                f'Native nsig extraction failed: Trying with PhantomJS\n'
-                f'         n = {s} ; player = {player_url}', video_id)
-            self.write_debug(e, only_once=True)
-
-            args, func_body = func_code
-            ret = jsi.execute(
-                f'console.log(function({", ".join(args)}) {{ {func_body} }}({s!r}));',
-                video_id=video_id, note='Executing signature code').strip()
+        extract_nsig = self._cached(self._extract_n_function_from_code, self._NSIG_FUNC_CACHE_ID, player_url)
+        ret = extract_nsig(jsi, func_code)(s)
 
         self.write_debug(f'Decrypted nsig {s} => {ret}')
         # Only cache nsig func JS code to disk if successful, and only once

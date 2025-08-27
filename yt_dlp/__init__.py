@@ -17,7 +17,7 @@ import traceback
 from .cookies import SUPPORTED_BROWSERS, SUPPORTED_KEYRINGS, CookieLoadError
 from .downloader.external import get_external_downloader
 from .extractor import list_extractor_classes
-from .extractor.adobepass import MSO_INFO
+# from .extractor.adobepass import MSO_INFO
 from .networking.impersonate import ImpersonateTarget
 from .globals import IN_CLI, plugin_dirs
 from .options import parseOpts
@@ -114,10 +114,10 @@ def print_extractor_information(opts, urls):
         out = '\n'.join(
             ie.description(markdown=False, search_examples=_SEARCHES)
             for ie in list_extractor_classes(opts.age_limit) if ie.working() and ie.IE_DESC is not False)
-    elif opts.ap_list_mso:
-        out = 'Supported TV Providers:\n{}\n'.format(render_table(
-            ['mso', 'mso name'],
-            [[mso_id, mso_info['name']] for mso_id, mso_info in MSO_INFO.items()]))
+    # elif opts.ap_list_mso:
+    #     out = 'Supported TV Providers:\n{}\n'.format(render_table(
+    #         ['mso', 'mso name'],
+    #         [[mso_id, mso_info['name']] for mso_id, mso_info in MSO_INFO.items()]))
     else:
         return False
     write_string(out, out=sys.stdout)
@@ -205,8 +205,8 @@ def validate_options(opts):
     validate(opts.password is None or opts.username is not None, 'account username', msg='{name} missing')
     validate(opts.ap_password is None or opts.ap_username is not None,
              'TV Provider account username', msg='{name} missing')
-    validate_in('TV Provider', opts.ap_mso, MSO_INFO,
-                'Unsupported {name} "{value}", use --ap-list-mso to get a list of supported TV Providers')
+    # validate_in('TV Provider', opts.ap_mso, MSO_INFO,
+    #             'Unsupported {name} "{value}", use --ap-list-mso to get a list of supported TV Providers')
 
     # Numbers
     validate_positive('autonumber start', opts.autonumber_start)
