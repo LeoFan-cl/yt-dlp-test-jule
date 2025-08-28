@@ -1,8 +1,9 @@
-from __future__ import annotations
+from __future__ import absolute_import
 
 import typing
 
 from ..utils import YoutubeDLError
+from itertools import ifilter
 
 if typing.TYPE_CHECKING:
     from .common import RequestHandler, Response
@@ -11,93 +12,92 @@ if typing.TYPE_CHECKING:
 class RequestError(YoutubeDLError):
     def __init__(
         self,
-        msg: str | None = None,
-        cause: Exception | str | None = None,
-        handler: RequestHandler = None,
+        msg=None,
+        cause=None,
+        handler=None,
     ):
         self.handler = handler
         self.cause = cause
         if not msg and cause:
-            msg = str(cause)
-        super().__init__(msg)
+            msg = unicode(cause)
+        super(RequestError, self).__init__(msg)
 
 
 class UnsupportedRequest(RequestError):
-    """raised when a handler cannot handle a request"""
+    u"""raised when a handler cannot handle a request"""
     pass
 
 
 class NoSupportingHandlers(RequestError):
-    """raised when no handlers can support a request for various reasons"""
+    u"""raised when no handlers can support a request for various reasons"""
 
-    def __init__(self, unsupported_errors: list[UnsupportedRequest], unexpected_errors: list[Exception]):
+    def __init__(self, unsupported_errors, unexpected_errors):
         self.unsupported_errors = unsupported_errors or []
         self.unexpected_errors = unexpected_errors or []
 
-        # Print a quick summary of the errors
         err_handler_map = {}
         for err in unsupported_errors:
             err_handler_map.setdefault(err.msg, []).append(err.handler.RH_NAME)
 
-        reason_str = ', '.join([f'{msg} ({", ".join(handlers)})' for msg, handlers in err_handler_map.items()])
+        reason_str = u', '.join([u'%s (%s)' % (msg, u", ".join(handlers)) for msg, handlers in err_handler_map.items()])
         if unexpected_errors:
-            reason_str = ' + '.join(filter(None, [reason_str, f'{len(unexpected_errors)} unexpected error(s)']))
+            reason_str = u' + '.join(ifilter(None, [reason_str, u'%d unexpected error(s)' % len(unexpected_errors)]))
 
-        err_str = 'Unable to handle request'
+        err_str = u'Unable to handle request'
         if reason_str:
-            err_str += f': {reason_str}'
+            err_str += u': %s' % reason_str
 
-        super().__init__(msg=err_str)
+        super(NoSupportingHandlers, self).__init__(msg=err_str)
 
 
 class TransportError(RequestError):
-    """Network related errors"""
+    u"""Network related errors"""
 
 
 class HTTPError(RequestError):
-    def __init__(self, response: Response, redirect_loop=False):
+    def __init__(self, response, redirect_loop=False):
         self.response = response
         self.status = response.status
         self.reason = response.reason
         self.redirect_loop = redirect_loop
-        msg = f'HTTP Error {response.status}: {response.reason}'
+        msg = u'HTTP Error %s: %s' % (response.status, response.reason)
         if redirect_loop:
-            msg += ' (redirect loop detected)'
+            msg += u' (redirect loop detected)'
 
-        super().__init__(msg=msg)
+        super(HTTPError, self).__init__(msg=msg)
 
     def close(self):
         self.response.close()
 
-    def __repr__(self):
-        return f'<HTTPError {self.status}: {self.reason}>'
+    def __enter__(self):
+        return self
 
-
-class IncompleteRead(TransportError):
-    def __init__(self, partial: int, expected: int | None = None, **kwargs):
-        self.partial = partial
-        self.expected = expected
-        msg = f'{partial} bytes read'
-        if expected is not None:
-            msg += f', {expected} more expected'
-
-        super().__init__(msg=msg, **kwargs)
-
-    def __repr__(self):
-        return f'<IncompleteRead: {self.msg}>'
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
 
 
 class SSLError(TransportError):
     pass
 
 
-class CertificateVerifyError(SSLError):
-    """Raised when certificate validated has failed"""
-    pass
+class IncompleteRead(TransportError):
+    def __init__(self, partial, expected=None, **kwargs):
+        self.partial = partial
+        self.expected = expected
+        msg = u'%d bytes read' % partial
+        if expected is not None:
+            msg += u', %d more expected' % expected
+
+        super(IncompleteRead, self).__init__(msg=msg, **kwargs)
+
+    def __repr__(self):
+        return u'<IncompleteRead: %s>' % self.msg
 
 
 class ProxyError(TransportError):
     pass
 
 
-network_exceptions = (HTTPError, TransportError)
+class CertificateVerifyError(SSLError):
+    u"""Raised when certificate validated has failed"""
+    pass

@@ -1,12 +1,10 @@
 """PUBLIC API"""
-
-from __future__ import annotations
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import base64
 import contextlib
-import enum
 import re
-import urllib.parse
+import urllib
 
 from yt_dlp.extractor.youtube.pot.provider import PoTokenContext, PoTokenRequest
 from yt_dlp.utils import traverse_obj
@@ -25,7 +23,7 @@ WEBPO_CLIENTS = (
 )
 
 
-class ContentBindingType(enum.Enum):
+class ContentBindingType(object):
     VISITOR_DATA = 'visitor_data'
     DATASYNC_ID = 'datasync_id'
     VIDEO_ID = 'video_id'
@@ -33,10 +31,10 @@ class ContentBindingType(enum.Enum):
 
 
 def get_webpo_content_binding(
-    request: PoTokenRequest,
+    request,
     webpo_clients=WEBPO_CLIENTS,
     bind_to_visitor_id=False,
-) -> tuple[str | None, ContentBindingType | None]:
+):
 
     client_name = traverse_obj(request.innertube_context, ('client', 'clientName'))
     if not client_name or client_name not in webpo_clients:
@@ -64,11 +62,13 @@ def _extract_visitor_id(visitor_data):
 
     # Attempt to extract the visitor ID from the visitor_data protobuf
     # xxx: ideally should use a protobuf parser
-    with contextlib.suppress(Exception):
+    try:
         visitor_id = base64.urlsafe_b64decode(
-            urllib.parse.unquote_plus(visitor_data))[2:13].decode()
+            urllib.unquote_plus(visitor_data))[2:13].decode()
         # check that visitor id is all letters and numbers
-        if re.fullmatch(r'[A-Za-z0-9_-]{11}', visitor_id):
+        if re.match(r'^[A-Za-z0-9_-]{11}$', visitor_id):
             return visitor_id
+    except Exception:
+        pass
 
     return None

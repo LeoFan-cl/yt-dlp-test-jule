@@ -1,10 +1,11 @@
 # flake8: noqa: F405
-from urllib import *  # noqa: F403
+from __future__ import absolute_import
 
-del request  # noqa: F821
-from . import request  # noqa: F401
+import sys
 
-from ..compat_utils import passthrough_module
-
-passthrough_module(__name__, 'urllib')
-del passthrough_module
+if sys.version_info[0] == 2:
+    from urllib import *
+    from urlparse import *
+else:
+    from urllib import *
+    from urllib.parse import *

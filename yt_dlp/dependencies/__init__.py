@@ -1,6 +1,7 @@
 # flake8: noqa: F401
 """Imports all optional dependencies for the project.
 An attribute "_yt_dlp__identifier" may be inserted into the module if it uses an ambiguous namespace"""
+from __future__ import unicode_literals
 
 try:
     import brotlicffi as brotli
@@ -36,9 +37,9 @@ try:
 except ImportError:
     _SECRETSTORAGE_UNAVAILABLE_REASON = (
         'as the `secretstorage` module is not installed. '
-        'Please install by running `python3 -m pip install secretstorage`')
+        'Please install by running `python -m pip install secretstorage`')
 except Exception as _err:
-    _SECRETSTORAGE_UNAVAILABLE_REASON = f'as the `secretstorage` module could not be initialized. {_err}'
+    _SECRETSTORAGE_UNAVAILABLE_REASON = 'as the `secretstorage` module could not be initialized. {0}'.format(_err)
 
 
 try:
@@ -52,9 +53,9 @@ except ImportError:
 
 
 try:
-    import websockets
+    import websocket
 except ImportError:
-    websockets = None
+    websocket = None
 
 try:
     import urllib3
@@ -81,8 +82,8 @@ except ImportError:
 
 from . import Cryptodome
 
-all_dependencies = {k: v for k, v in globals().items() if not k.startswith('_')}
-available_dependencies = {k: v for k, v in all_dependencies.items() if v}
+all_dependencies = dict((k, v) for k, v in globals().items() if not k.startswith('_'))
+available_dependencies = dict((k, v) for k, v in all_dependencies.items() if v)
 
 
 # Deprecated
@@ -92,5 +93,4 @@ Cryptodome_AES = Cryptodome.AES
 __all__ = [
     'all_dependencies',
     'available_dependencies',
-    *all_dependencies.keys(),
-]
+] + list(all_dependencies.keys())

@@ -1,7 +1,7 @@
-from __future__ import annotations
+# coding: utf-8
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import abc
-import enum
 import functools
 
 from yt_dlp.extractor.common import InfoExtractor
@@ -11,9 +11,10 @@ from yt_dlp.version import __version__
 # xxx: these could be generalized outside YoutubeIE eventually
 
 
-class IEContentProviderLogger(abc.ABC):
+class IEContentProviderLogger(object):
+    __metaclass__ = abc.ABCMeta
 
-    class LogLevel(enum.IntEnum):
+    class LogLevel(object):
         TRACE = 0
         DEBUG = 10
         INFO = 20
@@ -24,103 +25,86 @@ class IEContentProviderLogger(abc.ABC):
         def _missing_(cls, value):
             if isinstance(value, str):
                 value = value.upper()
-                if value in dir(cls):
-                    return cls[value]
-
+                if hasattr(cls, value):
+                    return getattr(cls, value)
             return cls.INFO
 
     log_level = LogLevel.INFO
 
     @abc.abstractmethod
-    def trace(self, message: str):
+    def trace(self, message):
         pass
 
     @abc.abstractmethod
-    def debug(self, message: str):
+    def debug(self, message):
         pass
 
     @abc.abstractmethod
-    def info(self, message: str):
+    def info(self, message):
         pass
 
     @abc.abstractmethod
-    def warning(self, message: str, *, once=False):
+    def warning(self, message, **kwargs):
         pass
 
     @abc.abstractmethod
-    def error(self, message: str):
+    def error(self, message):
         pass
 
 
 class IEContentProviderError(Exception):
     def __init__(self, msg=None, expected=False):
-        super().__init__(msg)
+        super(IEContentProviderError, self).__init__(msg)
         self.expected = expected
 
 
-class IEContentProvider(abc.ABC):
-    PROVIDER_VERSION: str = '0.0.0'
-    BUG_REPORT_LOCATION: str = '(developer has not provided a bug report location)'
+class IEContentProvider(object):
+    __metaclass__ = abc.ABCMeta
+    PROVIDER_VERSION = '0.0.0'
+    BUG_REPORT_LOCATION = '(developer has not provided a bug report location)'
 
     def __init__(
         self,
-        ie: InfoExtractor,
-        logger: IEContentProviderLogger,
-        settings: dict[str, list[str]], *_, **__,
+        ie,
+        logger,
+        settings, *_, **__,
     ):
         self.ie = ie
         self.settings = settings or {}
         self.logger = logger
-        super().__init__()
-
-    @classmethod
-    def __init_subclass__(cls, *, suffix=None, **kwargs):
-        if suffix:
-            cls._PROVIDER_KEY_SUFFIX = suffix
-        return super().__init_subclass__(**kwargs)
+        super(IEContentProvider, self).__init__()
 
     @classproperty
-    def PROVIDER_NAME(cls) -> str:
+    def PROVIDER_NAME(cls):
         return cls.__name__[:-len(cls._PROVIDER_KEY_SUFFIX)]
 
     @classproperty
     def BUG_REPORT_MESSAGE(cls):
-        return f'please report this issue to the provider developer at  {cls.BUG_REPORT_LOCATION}  .'
+        return 'please report this issue to the provider developer at  {0}  .'.format(cls.BUG_REPORT_LOCATION)
 
     @classproperty
-    def PROVIDER_KEY(cls) -> str:
+    def PROVIDER_KEY(cls):
         assert hasattr(cls, '_PROVIDER_KEY_SUFFIX'), 'Content Provider implementation must define a suffix for the provider key'
-        assert cls.__name__.endswith(cls._PROVIDER_KEY_SUFFIX), f'PoTokenProvider class names must end with "{cls._PROVIDER_KEY_SUFFIX}"'
+        assert cls.__name__.endswith(cls._PROVIDER_KEY_SUFFIX), 'PoTokenProvider class names must end with "{0}"'.format(cls._PROVIDER_KEY_SUFFIX)
         return cls.__name__[:-len(cls._PROVIDER_KEY_SUFFIX)]
 
     @abc.abstractmethod
-    def is_available(self) -> bool:
-        """
-        Check if the provider is available (e.g. all required dependencies are available)
-        This is used to determine if the provider should be used and to provide debug information.
-
-        IMPORTANT: This method should not make any network requests or perform any expensive operations.
-         It is called multiple times.
-        """
+    def is_available(self):
         raise NotImplementedError
 
-    def close(self):  # noqa: B027
+    def close(self):
         pass
 
-    def _configuration_arg(self, key, default=NO_DEFAULT, *, casesense=False):
-        """
-        @returns            A list of values for the setting given by "key"
-                            or "default" if no such key is present
-        @param default      The default value to return when the key is not present (default: [])
-        @param casesense    When false, the values are converted to lower case
-        """
+    def _configuration_arg(self, key, default=NO_DEFAULT, **kwargs):
+        casesense = kwargs.get('casesense', False)
         val = traverse_obj(self.settings, key)
         if val is None:
             return [] if default is NO_DEFAULT else default
         return list(val) if casesense else [x.lower() for x in val]
 
 
-class BuiltinIEContentProvider(IEContentProvider, abc.ABC):
+class BuiltinIEContentProvider(IEContentProvider):
+    __metaclass__ = abc.ABCMeta
     PROVIDER_VERSION = __version__
     BUG_REPORT_MESSAGE = bug_reports_message(before='')
 
@@ -130,9 +114,8 @@ def register_provider_generic(
     base_class,
     registry,
 ):
-    """Generic function to register a provider class"""
-    assert issubclass(provider, base_class), f'{provider} must be a subclass of {base_class.__name__}'
-    assert provider.PROVIDER_KEY not in registry, f'{base_class.__name__} {provider.PROVIDER_KEY} already registered'
+    assert issubclass(provider, base_class), '{0} must be a subclass of {1}'.format(provider, base_class.__name__)
+    assert provider.PROVIDER_KEY not in registry, '{0} {1} already registered'.format(base_class.__name__, provider.PROVIDER_KEY)
     registry[provider.PROVIDER_KEY] = provider
     return provider
 
@@ -142,7 +125,6 @@ def register_preference_generic(
     registry,
     *providers,
 ):
-    """Generic function to register a preference for a provider"""
     assert all(issubclass(provider, base_class) for provider in providers)
 
     def outer(preference):

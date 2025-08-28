@@ -1,4 +1,5 @@
-from __future__ import annotations
+# coding: utf-8
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from yt_dlp.extractor.youtube.pot._provider import BuiltinIEContentProvider
 from yt_dlp.extractor.youtube.pot.cache import (
@@ -18,7 +19,7 @@ from yt_dlp.utils import traverse_obj
 class WebPoPCSP(PoTokenCacheSpecProvider, BuiltinIEContentProvider):
     PROVIDER_NAME = 'webpo'
 
-    def generate_cache_spec(self, request: PoTokenRequest) -> PoTokenCacheSpec | None:
+    def generate_cache_spec(self, request):
         bind_to_visitor_id = self._configuration_arg(
             'bind_to_visitor_id', default=['true'])[0] == 'true'
 

@@ -1,4 +1,5 @@
 # flake8: noqa: F401
+from __future__ import absolute_import
 
 from .common import PostProcessor
 from .embedthumbnail import EmbedThumbnailPP
@@ -37,16 +38,13 @@ from ..globals import plugin_pps, postprocessors
 from ..plugins import PACKAGE_NAME, register_plugin_spec, PluginSpec
 from ..utils import deprecation_warning
 
-
-def __getattr__(name):
-    lookup = plugin_pps.value
-    if name in lookup:
-        deprecation_warning(
-            f'Importing a plugin Post-Processor from {__name__} is deprecated. '
-            f'Please import {PACKAGE_NAME}.postprocessor.{name} instead.')
-        return lookup[name]
-
-    raise AttributeError(f'module {__name__!r} has no attribute {name!r}')
+# __getattr__ is a Python 3.7+ feature.
+# The original code used it to provide deprecation warnings for plugin imports.
+# As a workaround for Python 2.7, we directly expose the plugin postprocessors
+# as module attributes, sacrificing the deprecation warning.
+for name, pp in plugin_pps.value.items():
+    if name not in globals():
+        globals()[name] = pp
 
 
 def get_postprocessor(key):
@@ -60,11 +58,11 @@ register_plugin_spec(PluginSpec(
     plugin_destination=plugin_pps,
 ))
 
-_default_pps = {
-    name: value
+_default_pps = dict(
+    (name, value)
     for name, value in globals().items()
     if name.endswith('PP') or name in ('FFmpegPostProcessor', 'PostProcessor')
-}
+)
 postprocessors.value.update(_default_pps)
 
-__all__ = list(_default_pps.values())
+__all__ = list(_default_pps.keys())

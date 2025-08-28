@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 from ..compat.compat_utils import passthrough_module
 
 try:
@@ -25,7 +26,7 @@ try:
         from Crypto.Hash import CMAC, SHA1  # noqa: F401
         from Crypto.PublicKey import RSA  # noqa: F401
 except (ImportError, OSError):
-    __version__ = f'broken {__version__}'.strip()
+    __version__ = 'broken {0}'.format(__version__).strip()
 
 
 _yt_dlp__identifier = _parent.__name__
@@ -33,6 +34,6 @@ if AES and _yt_dlp__identifier == 'Crypto':
     try:
         # In pycrypto, mode defaults to ECB. See:
         # https://www.pycryptodome.org/en/latest/src/vs_pycrypto.html#:~:text=not%20have%20ECB%20as%20default%20mode
-        AES.new(b'abcdefghijklmnop')
+        AES.new('abcdefghijklmnop')
     except TypeError:
         _yt_dlp__identifier = 'pycrypto'

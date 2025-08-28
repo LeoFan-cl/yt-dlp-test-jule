@@ -1,3 +1,5 @@
+from __future__ import with_statement
+from __future__ import absolute_import
 import threading
 
 from .common import FileDownloader
@@ -5,14 +7,14 @@ from .external import FFmpegFD
 
 
 class FC2LiveFD(FileDownloader):
-    """
+    u"""
     Downloads FC2 live without being stopped. <br>
     Note, this is not a part of public API, and will be removed without notice.
     DO NOT USE
     """
 
     def real_download(self, filename, info_dict):
-        ws = info_dict['ws']
+        ws = info_dict[u'ws']
 
         heartbeat_lock = threading.Lock()
         heartbeat_state = [None, 1]
@@ -23,9 +25,9 @@ class FC2LiveFD(FileDownloader):
 
             try:
                 heartbeat_state[1] += 1
-                ws.send('{"name":"heartbeat","arguments":{},"id":%d}' % heartbeat_state[1])
+                ws.send(u'{"name":"heartbeat","arguments":{},"id":%d}' % heartbeat_state[1])
             except Exception:
-                self.to_screen('[fc2:live] Heartbeat failed')
+                self.to_screen(u'[fc2:live] Heartbeat failed')
 
             with heartbeat_lock:
                 heartbeat_state[0] = threading.Timer(30, heartbeat)
@@ -36,8 +38,8 @@ class FC2LiveFD(FileDownloader):
 
         new_info_dict = info_dict.copy()
         new_info_dict.update({
-            'ws': None,
-            'protocol': 'live_ffmpeg',
+            u'ws': None,
+            u'protocol': u'live_ffmpeg',
         })
         try:
             return FFmpegFD(self.ydl, self.params or {}).download(filename, new_info_dict)

@@ -1,50 +1,46 @@
+from __future__ import absolute_import
 import os
+import shutil
 
 from .common import PostProcessor
-from ..compat import shutil
-from ..utils import (
-    PostProcessingError,
-    make_dir,
-)
+from ..utils import PostProcessingError
 
 
 class MoveFilesAfterDownloadPP(PostProcessor):
-
-    def __init__(self, downloader=None, downloaded=True):
-        PostProcessor.__init__(self, downloader)
+    def __init__(self, downloader, downloaded=True):
+        super(MoveFilesAfterDownloadPP, self).__init__(downloader)
         self._downloaded = downloaded
 
     @classmethod
     def pp_key(cls):
-        return 'MoveFiles'
+        return u'MoveFiles'
 
     def run(self, info):
-        dl_path, dl_name = os.path.split(info['filepath'])
-        finaldir = info.get('__finaldir', dl_path)
+        dl_path, dl_name = os.path.split(info[u'filepath'])
+        finaldir = info.get(u'__finaldir', dl_path)
         finalpath = os.path.join(finaldir, dl_name)
         if self._downloaded:
-            info['__files_to_move'][info['filepath']] = finalpath
+            info[u'__files_to_move'][info[u'filepath']] = finalpath
 
         make_newfilename = lambda old: os.path.join(finaldir, os.path.basename(old))
-        for oldfile, newfile in info['__files_to_move'].items():
+        for oldfile, newfile in info[u'__files_to_move'].items():
             if not newfile:
                 newfile = make_newfilename(oldfile)
             if os.path.abspath(oldfile) == os.path.abspath(newfile):
                 continue
+
             if not os.path.exists(oldfile):
-                self.report_warning(f'File "{oldfile}" cannot be found')
+                self.report_warning('File "%s" cannot be found' % oldfile)
                 continue
             if os.path.exists(newfile):
-                if self.get_param('overwrites', True):
-                    self.report_warning(f'Replacing existing file "{newfile}"')
+                if self.get_param(u'overwrites', True):
+                    self.report_warning('Replacing existing file "%s"' % newfile)
                     os.remove(newfile)
                 else:
-                    self.report_warning(
-                        f'Cannot move file "{oldfile}" out of temporary directory since "{newfile}" already exists. ')
-                    continue
-            make_dir(newfile, PostProcessingError)
-            self.to_screen(f'Moving file "{oldfile}" to "{newfile}"')
+                    raise PostProcessingError('Destination file "%s" already exists' % newfile)
+
+            self.to_screen('Moving file "%s" to "%s"' % (oldfile, newfile))
             shutil.move(oldfile, newfile)  # os.rename cannot move between volumes
 
-        info['filepath'] = finalpath
+        info[u'filepath'] = finalpath
         return [], info

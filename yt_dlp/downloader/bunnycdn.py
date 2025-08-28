@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import hashlib
 import random
 import threading
@@ -9,7 +10,7 @@ from ..networking.exceptions import network_exceptions
 
 
 class BunnyCdnFD(FileDownloader):
-    """
+    u"""
     Downloads from BunnyCDN with required pings
     Note, this is not a part of public API, and will be removed without notice.
     DO NOT USE
@@ -21,7 +22,7 @@ class BunnyCdnFD(FileDownloader):
         fd = HlsFD(self.ydl, self.params)
 
         stop_event = threading.Event()
-        ping_thread = threading.Thread(target=self.ping_thread, args=(stop_event,), kwargs=info_dict['_bunnycdn_ping_data'])
+        ping_thread = threading.Thread(target=self.ping_thread, args=(stop_event,), kwargs=info_dict[u'_bunnycdn_ping_data'])
         ping_thread.start()
 
         try:
@@ -34,7 +35,7 @@ class BunnyCdnFD(FileDownloader):
         ping_interval = 2
         # Hard coded resolution as it doesn't seem to matter
         res = 1080
-        paused = 'false'
+        paused = u'false'
         current_time = 0
 
         while not stop_event.wait(ping_interval):
@@ -46,5 +47,5 @@ class BunnyCdnFD(FileDownloader):
 
             try:
                 self.ydl.urlopen(Request(ping_url, headers=headers)).read()
-            except network_exceptions as e:
+            except network_exceptions, e:
                 self.to_screen(f'[{self.FD_NAME}] Ping failed: {e}')

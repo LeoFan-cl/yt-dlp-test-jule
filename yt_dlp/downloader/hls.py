@@ -1,7 +1,9 @@
+# coding: utf-8
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import binascii
 import io
 import re
-import urllib.parse
 
 from . import get_suitable_downloader
 from .external import FFmpegFD
@@ -17,6 +19,7 @@ from ..utils import (
     urljoin,
 )
 from ..utils._utils import _request_dump_filename
+from ..compat._legacy import compat_urllib_parse as urllib_parse
 
 
 class HlsFD(FragmentFD):
@@ -39,25 +42,7 @@ class HlsFD(FragmentFD):
 
     @classmethod
     def can_download(cls, manifest, info_dict, allow_unplayable_formats=False):
-        UNSUPPORTED_FEATURES = [
-            # r'#EXT-X-BYTERANGE',  # playlists composed of byte ranges of media files [2]
-
-            # Live streams heuristic does not always work (e.g. geo restricted to Germany
-            # http://hls-geo.daserste.de/i/videoportal/Film/c_620000/622873/format,716451,716457,716450,716458,716459,.mp4.csmil/index_4_av.m3u8?null=0)
-            # r'#EXT-X-MEDIA-SEQUENCE:(?!0$)',  # live streams [3]
-
-            # This heuristic also is not correct since segments may not be appended as well.
-            # Twitch vods of finished streams have EXT-X-PLAYLIST-TYPE:EVENT despite
-            # no segments will definitely be appended to the end of the playlist.
-            # r'#EXT-X-PLAYLIST-TYPE:EVENT',  # media segments may be appended to the end of
-            #                                 # event media playlists [4]
-            # r'#EXT-X-MAP:',  # media initialization [5]
-            # 1. https://tools.ietf.org/html/draft-pantos-http-live-streaming-17#section-4.3.2.4
-            # 2. https://tools.ietf.org/html/draft-pantos-http-live-streaming-17#section-4.3.2.2
-            # 3. https://tools.ietf.org/html/draft-pantos-http-live-streaming-17#section-4.3.3.2
-            # 4. https://tools.ietf.org/html/draft-pantos-http-live-streaming-17#section-4.3.3.5
-            # 5. https://tools.ietf.org/html/draft-pantos-http-live-streaming-17#section-4.3.2.5
-        ]
+        UNSUPPORTED_FEATURES = []
         if not allow_unplayable_formats:
             UNSUPPORTED_FEATURES += [
                 r'#EXT-X-KEY:METHOD=(?!NONE|AES-128)',  # encrypted streams [1], but not necessarily DRM
@@ -76,17 +61,17 @@ class HlsFD(FragmentFD):
 
         s = info_dict.get('hls_media_playlist_data')
         if s:
-            self.to_screen(f'[{self.FD_NAME}] Using m3u8 manifest from extracted info')
+            self.to_screen('[{0}] Using m3u8 manifest from extracted info'.format(self.FD_NAME))
         else:
-            self.to_screen(f'[{self.FD_NAME}] Downloading m3u8 manifest')
+            self.to_screen('[{0}] Downloading m3u8 manifest'.format(self.FD_NAME))
             urlh = self.ydl.urlopen(self._prepare_url(info_dict, man_url))
-            man_url = urlh.url
+            man_url = urlh.geturl()
             s_bytes = urlh.read()
             if self.params.get('write_pages'):
                 dump_filename = _request_dump_filename(
                     man_url, info_dict['id'], None,
                     trim_length=self.params.get('trim_file_name'))
-                self.to_screen(f'[{self.FD_NAME}] Saving request to {dump_filename}')
+                self.to_screen('[{0}] Saving request to {1}'.format(self.FD_NAME, dump_filename))
                 with open(dump_filename, 'wb') as outf:
                     outf.write(s_bytes)
             s = s_bytes.decode('utf-8', 'ignore')
@@ -100,7 +85,7 @@ class HlsFD(FragmentFD):
                     'extra_param_to_segment_url', 'extra_param_to_key_url',
                     'hls_media_playlist_data', ('hls_aes', ('uri', 'key', 'iv')),
                 ), any))
-                message = 'The stream has AES-128 encryption and {} available'.format(
+                message = 'The stream has AES-128 encryption and {0} available'.format(
                     'neither ffmpeg nor pycryptodomex are' if ffmpeg_can_dl and not has_ffmpeg else
                     'pycryptodomex is not')
                 if has_ffmpeg and ffmpeg_can_dl:
@@ -110,11 +95,11 @@ class HlsFD(FragmentFD):
             elif info_dict.get('extractor_key') == 'Generic' and re.search(r'(?m)#EXT-X-MEDIA-SEQUENCE:(?!0$)', s):
                 install_ffmpeg = '' if has_ffmpeg else 'install ffmpeg and '
                 message = ('Live HLS streams are not supported by the native downloader. If this is a livestream, '
-                           f'please {install_ffmpeg}add "--downloader ffmpeg --hls-use-mpegts" to your command')
+                           'please {0}add "--downloader ffmpeg --hls-use-mpegts" to your command'.format(install_ffmpeg))
         if not can_download:
             if self._has_drm(s) and not self.params.get('allow_unplayable_formats'):
                 if info_dict.get('has_drm') and self.params.get('test'):
-                    self.to_screen(f'[{self.FD_NAME}] This format is DRM protected', skip_eol=True)
+                    self.to_screen('[{0}] This format is DRM protected'.format(self.FD_NAME), skip_eol=True)
                 else:
                     self.report_error(
                         'This format is DRM protected; Try selecting another format with --format or '
@@ -122,7 +107,7 @@ class HlsFD(FragmentFD):
                 return False
             message = message or 'Unsupported features have been detected'
             fd = FFmpegFD(self.ydl, self.params)
-            self.report_warning(f'{message}; extraction will be delegated to {fd.get_basename()}')
+            self.report_warning('{0}; extraction will be delegated to {1}'.format(message, fd.get_basename()))
             return fd.real_download(filename, info_dict)
         elif message:
             self.report_warning(message)
@@ -136,7 +121,7 @@ class HlsFD(FragmentFD):
         if real_downloader and not real_downloader.supports_manifest(s):
             real_downloader = None
         if real_downloader:
-            self.to_screen(f'[{self.FD_NAME}] Fragment downloads will be delegated to {real_downloader.get_basename()}')
+            self.to_screen('[{0}] Fragment downloads will be delegated to {1}'.format(self.FD_NAME, real_downloader.get_basename()))
 
         def is_ad_fragment_start(s):
             return ((s.startswith('#ANVATO-SEGMENT-INFO') and 'type=ad' in s)
@@ -181,11 +166,11 @@ class HlsFD(FragmentFD):
 
         format_index = info_dict.get('format_index')
         extra_segment_query = None
-        if extra_param_to_segment_url := info_dict.get('extra_param_to_segment_url'):
-            extra_segment_query = urllib.parse.parse_qs(extra_param_to_segment_url)
+        if info_dict.get('extra_param_to_segment_url'):
+            extra_segment_query = urllib_parse.parse_qs(info_dict.get('extra_param_to_segment_url'))
         extra_key_query = None
-        if extra_param_to_key_url := info_dict.get('extra_param_to_key_url'):
-            extra_key_query = urllib.parse.parse_qs(extra_param_to_key_url)
+        if info_dict.get('extra_param_to_key_url'):
+            extra_key_query = urllib_parse.parse_qs(info_dict.get('extra_param_to_key_url'))
         i = 0
         media_sequence = 0
         decrypt_info = {'METHOD': 'NONE'}
@@ -382,8 +367,7 @@ class HlsFD(FragmentFD):
                             # XXX: this should probably be silent as well
                             # or verify that all segments contain the same data
                             self.report_warning(bug_reports_message(
-                                f'Discarding a {type(block).__name__} block found in the middle of the stream; '
-                                'if the subtitles display incorrectly,'))
+                                'Discarding a {0} block found in the middle of the stream; if the subtitles display incorrectly,'.format(type(block).__name__)))
                             continue
                     block.write_into(output)
 

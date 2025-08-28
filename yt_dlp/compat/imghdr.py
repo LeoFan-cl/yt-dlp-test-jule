@@ -1,3 +1,7 @@
+from __future__ import absolute_import
+from __future__ import with_statement
+from io import open
+
 def what(file=None, h=None):
     """Detect format of image (Currently supports jpeg, png, webp, gif only)
     Ref: https://github.com/python/cpython/blob/3.11/Lib/imghdr.py
@@ -10,10 +14,10 @@ def what(file=None, h=None):
     if h.startswith(b'RIFF') and h.startswith(b'WEBP', 8):
         return 'webp'
 
-    if h.startswith(b'\x89PNG'):
+    if h.startswith(b'\\x89PNG'):
         return 'png'
 
-    if h.startswith(b'\xFF\xD8\xFF'):
+    if h.startswith(b'\\xFF\\xD8\\xFF'):
         return 'jpeg'
 
     if h.startswith(b'GIF'):

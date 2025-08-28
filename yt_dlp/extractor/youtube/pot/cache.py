@@ -1,11 +1,7 @@
-"""PUBLIC API"""
-
-from __future__ import annotations
+# coding: utf-8
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 import abc
-import dataclasses
-import enum
-import typing
 
 from yt_dlp.extractor.youtube.pot._provider import (
     IEContentProvider,
@@ -19,53 +15,57 @@ from yt_dlp.extractor.youtube.pot._registry import (
     _pot_pcs_providers,
 )
 from yt_dlp.extractor.youtube.pot.provider import PoTokenRequest
+from ...compat._legacy import compat_dataclasses as dataclasses
 
 
 class PoTokenCacheProviderError(IEContentProviderError):
     """An error occurred while fetching a PO Token"""
 
 
-class PoTokenCacheProvider(IEContentProvider, abc.ABC, suffix='PCP'):
+class PoTokenCacheProvider(IEContentProvider):
+    __metaclass__ = abc.ABCMeta
+    _PROVIDER_KEY_SUFFIX = 'PCP'
+
     @abc.abstractmethod
-    def get(self, key: str) -> str | None:
+    def get(self, key):
         pass
 
     @abc.abstractmethod
-    def store(self, key: str, value: str, expires_at: int):
+    def store(self, key, value, expires_at):
         pass
 
     @abc.abstractmethod
-    def delete(self, key: str):
+    def delete(self, key):
         pass
 
 
-class CacheProviderWritePolicy(enum.Enum):
-    WRITE_ALL = enum.auto()    # Write to all cache providers
-    WRITE_FIRST = enum.auto()  # Write to only the first cache provider
+class CacheProviderWritePolicy(object):
+    WRITE_ALL = 1
+    WRITE_FIRST = 2
 
 
-@dataclasses.dataclass
-class PoTokenCacheSpec:
-    key_bindings: dict[str, str | None]
-    default_ttl: int
-    write_policy: CacheProviderWritePolicy = CacheProviderWritePolicy.WRITE_ALL
-
-    # Internal
-    _provider: PoTokenCacheSpecProvider | None = None
+class PoTokenCacheSpec(object):
+    def __init__(self, key_bindings, default_ttl, write_policy=CacheProviderWritePolicy.WRITE_ALL, _provider=None):
+        self.key_bindings = key_bindings
+        self.default_ttl = default_ttl
+        self.write_policy = write_policy
+        self._provider = _provider
 
 
-class PoTokenCacheSpecProvider(IEContentProvider, abc.ABC, suffix='PCSP'):
+class PoTokenCacheSpecProvider(IEContentProvider):
+    __metaclass__ = abc.ABCMeta
+    _PROVIDER_KEY_SUFFIX = 'PCSP'
 
-    def is_available(self) -> bool:
+    def is_available(self):
         return True
 
     @abc.abstractmethod
-    def generate_cache_spec(self, request: PoTokenRequest) -> PoTokenCacheSpec | None:
+    def generate_cache_spec(self, request):
         """Generate a cache spec for the given request"""
         pass
 
 
-def register_provider(provider: type[PoTokenCacheProvider]):
+def register_provider(provider):
     """Register a PoTokenCacheProvider class"""
     return register_provider_generic(
         provider=provider,
@@ -74,7 +74,7 @@ def register_provider(provider: type[PoTokenCacheProvider]):
     )
 
 
-def register_spec(provider: type[PoTokenCacheSpecProvider]):
+def register_spec(provider):
     """Register a PoTokenCacheSpecProvider class"""
     return register_provider_generic(
         provider=provider,
@@ -83,15 +83,10 @@ def register_spec(provider: type[PoTokenCacheSpecProvider]):
     )
 
 
-def register_preference(
-        *providers: type[PoTokenCacheProvider]) -> typing.Callable[[CacheProviderPreference], CacheProviderPreference]:
+def register_preference(*providers):
     """Register a preference for a PoTokenCacheProvider"""
     return register_preference_generic(
         PoTokenCacheProvider,
         _pot_cache_provider_preferences.value,
         *providers,
     )
-
-
-if typing.TYPE_CHECKING:
-    CacheProviderPreference = typing.Callable[[PoTokenCacheProvider, PoTokenRequest], int]

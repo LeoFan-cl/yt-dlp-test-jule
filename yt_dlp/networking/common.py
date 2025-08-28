@@ -1,43 +1,38 @@
-from __future__ import annotations
+from __future__ import absolute_import
 
 import abc
-import copy
-import enum
 import functools
 import io
 import typing
-import urllib.parse
-import urllib.request
-import urllib.response
-from collections.abc import Iterable, Mapping
+import urlparse
+import urllib2
+from collections import Iterable, Mapping
 from email.message import Message
-from http import HTTPStatus
 
-from ._helper import make_ssl_context, wrap_request_errors
-from .exceptions import (
-    NoSupportingHandlers,
-    RequestError,
-    TransportError,
-    UnsupportedRequest,
-)
-from ..compat.types import NoneType
+from ..compat import compat_urllib_error
 from ..cookies import YoutubeDLCookieJar
 from ..utils import (
     bug_reports_message,
     classproperty,
     deprecation_warning,
     error_to_str,
+    HTTPHeaderDict,
+    network_exceptions,
     update_url_query,
 )
-from ..utils.networking import HTTPHeaderDict, normalize_url
+from .exceptions import RequestError, UnsupportedRequest
+
+# typing
+if typing.TYPE_CHECKING:
+    from typing import Type
 
 DEFAULT_TIMEOUT = 20
 
 
-def register_preference(*handlers: type[RequestHandler]):
+def register_preference(*handlers):
     assert all(issubclass(handler, RequestHandler) for handler in handlers)
 
-    def outer(preference: Preference):
+    def outer(preference):
         @functools.wraps(preference)
         def inner(handler, *args, **kwargs):
             if not handlers or isinstance(handler, handlers):
@@ -48,198 +43,191 @@ def register_preference(*handlers: type[RequestHandler]):
     return outer
 
 
-class RequestDirector:
-    """RequestDirector class
+class RequestDirector(object):
+    u"""RequestDirector class
 
     Helper class that, when given a request, forward it to a RequestHandler that supports it.
 
-    Preference functions in the form of func(handler, request) -> int
-    can be registered into the `preferences` set. These are used to sort handlers
-    in order of preference.
+    This class is not meant to be used directly by the user.
+    Instead, it is used by the YoutubeDL class to handle all network requests.
 
-    @param logger: Logger instance.
-    @param verbose: Print debug request information to stdout.
+    The RequestDirector is responsible for:
+    - Managing RequestHandlers
+    - Selecting the best handler for a given request
+    - Forwarding the request to the selected handler
+    - Handling errors and retries
     """
 
     def __init__(self, logger, verbose=False):
-        self.handlers: dict[str, RequestHandler] = {}
-        self.preferences: set[Preference] = set()
+        self.handlers = {}
+        self.preferences = set()
         self.logger = logger  # TODO(Grub4k): default logger
         self.verbose = verbose
 
-    def close(self):
+    def __del__(self):
         for handler in self.handlers.values():
             handler.close()
         self.handlers.clear()
 
-    def add_handler(self, handler: RequestHandler):
-        """Add a handler. If a handler of the same RH_KEY exists, it will overwrite it"""
-        assert isinstance(handler, RequestHandler), 'handler must be a RequestHandler'
+    def add_handler(self, handler):
+        u"""Add a handler. If a handler of the same RH_KEY exists, it will overwrite it"""
+        assert isinstance(handler, RequestHandler), u'handler must be a RequestHandler'
         self.handlers[handler.RH_KEY] = handler
 
-    def _get_handlers(self, request: Request) -> list[RequestHandler]:
-        """Sorts handlers by preference, given a request"""
-        preferences = {
-            rh: sum(pref(rh, request) for pref in self.preferences)
+    def _get_handlers(self, request):
+        u"""Sorts handlers by preference, given a request"""
+        preferences = dict(
+            (rh, sum(pref(rh, request) for pref in self.preferences))
             for rh in self.handlers.values()
-        }
-        self._print_verbose('Handler preferences for this request: {}'.format(', '.join(
-            f'{rh.RH_NAME}={pref}' for rh, pref in preferences.items())))
+        )
+        self._print_verbose(u'Handler preferences for this request: %s' % (u', '.join(
+            u'%s=%s' % (rh.RH_NAME, pref) for rh, pref in preferences.items())))
         return sorted(self.handlers.values(), key=preferences.get, reverse=True)
 
     def _print_verbose(self, msg):
         if self.verbose:
-            self.logger.stdout(f'director: {msg}')
+            self.logger.stdout('director: %s' % msg)
 
-    def send(self, request: Request) -> Response:
-        """
+    def send(self, request):
+        u"""
         Passes a request onto a suitable RequestHandler
         """
         if not self.handlers:
-            raise RequestError('No request handlers configured')
+            raise RequestError(u'No request handlers configured')
 
         assert isinstance(request, Request)
 
-        unexpected_errors = []
         unsupported_errors = []
         for handler in self._get_handlers(request):
-            self._print_verbose(f'Checking if "{handler.RH_NAME}" supports this request.')
+            self._print_verbose('Checking if "%s" supports this request.' % handler.RH_NAME)
             try:
                 handler.validate(request)
-            except UnsupportedRequest as e:
+            except UnsupportedRequest, e:
                 self._print_verbose(
-                    f'"{handler.RH_NAME}" cannot handle this request (reason: {error_to_str(e)})')
+                    '"%s" cannot handle this request (reason: %s)' % (handler.RH_NAME, error_to_str(e)))
                 unsupported_errors.append(e)
                 continue
 
-            self._print_verbose(f'Sending request via "{handler.RH_NAME}"')
+            self._print_verbose('"%s" is the best handler for this request' % handler.RH_NAME)
             try:
                 response = handler.send(request)
             except RequestError:
                 raise
-            except Exception as e:
+            except Exception, e:
                 self.logger.error(
-                    f'[{handler.RH_NAME}] Unexpected error: {error_to_str(e)}{bug_reports_message()}',
+                    '[%s] Unexpected error: %s%s' % (handler.RH_NAME, error_to_str(e), bug_reports_message()),
                     is_error=False)
-                unexpected_errors.append(e)
-                continue
+                # We do not want to retry on unexpected errors
+                raise RequestError(e, handler=handler)
 
-            assert isinstance(response, Response)
             return response
 
-        raise NoSupportingHandlers(unsupported_errors, unexpected_errors)
+        raise UnsupportedRequest(
+            'No handler is able to handle this request. The following reasons were given:\n%s'
+            % '\n'.join(f'  {error_to_str(e)}' for e in unsupported_errors),
+            errors=unsupported_errors)
 
 
 _REQUEST_HANDLERS = {}
 
 
 def register_rh(handler):
-    """Register a RequestHandler class"""
-    assert issubclass(handler, RequestHandler), f'{handler} must be a subclass of RequestHandler'
-    assert handler.RH_KEY not in _REQUEST_HANDLERS, f'RequestHandler {handler.RH_KEY} already registered'
+    u"""Register a RequestHandler class"""
+    assert issubclass(handler, RequestHandler), '%s must be a subclass of RequestHandler' % handler
+    assert handler.RH_KEY not in _REQUEST_HANDLERS, 'RequestHandler %s already registered' % handler.RH_KEY
     _REQUEST_HANDLERS[handler.RH_KEY] = handler
     return handler
 
 
-class Features(enum.Enum):
-    ALL_PROXY = enum.auto()
-    NO_PROXY = enum.auto()
+def get_rh(key):
+    return _REQUEST_HANDLERS[key]
 
 
-class RequestHandler(abc.ABC):
+class RequestHandler(object):
+    __metaclass__ = abc.ABCMeta
 
-    """Request Handler class
+    u"""Request Handler class
 
     Request handlers are class that, given a Request,
     process the request from start to finish and return a Response.
 
-    Concrete subclasses need to redefine the _send(request) method,
-    which handles the underlying request logic and returns a Response.
+    Request handlers are responsible for:
+    - Handling proxies
+    - Handling cookies
+    - Handling authentication
+    - Handling redirects
+    - Handling retries
+    - Handling timeouts
+    - etc.
 
-    RH_NAME class variable may contain a display name for the RequestHandler.
-    By default, this is generated from the class name.
+    A RequestHandler can be configured with the following options:
+    - `headers`: A dictionary of headers to be sent with every request.
+    - `cookiejar`: A `YoutubeDLCookieJar` instance to use for cookies.
+    - `timeout`: The timeout for every request.
+    - `proxies`: A dictionary of proxies to use for every request.
+    - `source_address`: The source address to use for every request.
+    - `verbose`: Whether to print verbose output.
+    - `prefer_system_certs`: Whether to prefer system certificates over certifi.
+    - `client_cert`: A dictionary containing the client certificate and key.
+    - `verify`: Whether to verify the server's TLS certificate.
+    - `legacy_ssl_support`: Whether to enable legacy SSL support.
 
-    The concrete request handler MUST have "RH" as the suffix in the class name.
+    To create a new RequestHandler, you must subclass this class and implement
+    the `_send` method. You must also set the `RH_NAME` and `RH_KEY` class
+    attributes. The `RH_KEY` must be unique across all RequestHandlers.
 
-    All exceptions raised by a RequestHandler should be an instance of RequestError.
-    Any other exception raised will be treated as a handler issue.
+    The `_send` method is responsible for handling the request and returning a
+    `Response` object. It should not be called directly by the user.
 
-    If a Request is not supported by the handler, an UnsupportedRequest
-    should be raised with a reason.
+    The `validate` method is used to check if the handler can handle a given
 
-    By default, some checks are done on the request in _validate() based on the following class variables:
-    - `_SUPPORTED_URL_SCHEMES`: a tuple of supported url schemes.
-        Any Request with an url scheme not in this list will raise an UnsupportedRequest.
+    request. It should not be called directly by the user.
 
-    - `_SUPPORTED_PROXY_SCHEMES`: a tuple of support proxy url schemes. Any Request that contains
-        a proxy url with an url scheme not in this list will raise an UnsupportedRequest.
-
-    - `_SUPPORTED_FEATURES`: a tuple of supported features, as defined in Features enum.
-
-    The above may be set to None to disable the checks.
-
-    Parameters:
-    @param logger: logger instance
-    @param headers: HTTP Headers to include when sending requests.
-    @param cookiejar: Cookiejar to use for requests.
-    @param timeout: Socket timeout to use when sending requests.
-    @param proxies: Proxies to use for sending requests.
-    @param source_address: Client-side IP address to bind to for requests.
-    @param verbose: Print debug request and traffic information to stdout.
-    @param prefer_system_certs: Whether to prefer system certificates over other means (e.g. certifi).
-    @param client_cert: SSL client certificate configuration.
-            dict with {client_certificate, client_certificate_key, client_certificate_password}
-    @param verify: Verify SSL certificates
-    @param legacy_ssl_support: Enable legacy SSL options such as legacy server connect and older cipher support.
-
-    Some configuration options may be available for individual Requests too. In this case,
-    either the Request configuration option takes precedence or they are merged.
-
-    Requests may have additional optional parameters defined as extensions.
-     RequestHandler subclasses may choose to support custom extensions.
-
-    If an extension is supported, subclasses should extend _check_extensions(extensions)
-    to pop and validate the extension.
-    - Extensions left in `extensions` are treated as unsupported and UnsupportedRequest will be raised.
-
-    The following extensions are defined for RequestHandler:
-    - `cookiejar`: Cookiejar to use for this request.
-    - `timeout`: socket timeout to use for this request.
-    - `legacy_ssl`: Enable legacy SSL options for this request. See legacy_ssl_support.
-    - `keep_header_casing`: Keep the casing of headers when sending the request.
-    To enable these, add extensions.pop('<extension>', None) to _check_extensions
-
-    Apart from the url protocol, proxies dict may contain the following keys:
-    - `all`: proxy to use for all protocols. Used as a fallback if no proxy is set for a specific protocol.
-    - `no`: comma seperated list of hostnames (optionally with port) to not use a proxy for.
-    Note: a RequestHandler may not support these, as defined in `_SUPPORTED_FEATURES`.
-
+    The `close` method is used to clean up any resources used by the handler.
+    It should be called when the handler is no longer needed.
     """
 
+    # The name of the request handler
+    RH_NAME = None
+    # A tuple of supported URL schemes (e.g. ('http', 'https'))
+    # If None, all URL schemes are supported
     _SUPPORTED_URL_SCHEMES = ()
-    _SUPPORTED_PROXY_SCHEMES = ()
+    # A tuple of supported proxy schemes (e.g. ('http', 'https'))
+    # If None, all proxy schemes are supported
+    _SUPPORTED_PROXY_SCHEMES = None
+    # A tuple of supported features
     _SUPPORTED_FEATURES = ()
 
     def __init__(
-        self, *,
-        logger,  # TODO(Grub4k): default logger
-        headers: HTTPHeaderDict = None,
-        cookiejar: YoutubeDLCookieJar = None,
-        timeout: float | int | None = None,
-        proxies: dict | None = None,
-        source_address: str | None = None,
-        verbose: bool = False,
-        prefer_system_certs: bool = False,
-        client_cert: dict[str, str | None] | None = None,
-        verify: bool = True,
-        legacy_ssl_support: bool = False,
-        **_,
+        self,
+        **_
     ):
+        if 'legacy_ssl_support' in _: legacy_ssl_support = _['legacy_ssl_support']; del _['legacy_ssl_support']
+        else: legacy_ssl_support = False
+        if 'verify' in _: verify = _['verify']; del _['verify']
+        else: verify = True
+        if 'client_cert' in _: client_cert = _['client_cert']; del _['client_cert']
+        else: client_cert = None
+        if 'prefer_system_certs' in _: prefer_system_certs = _['prefer_system_certs']; del _['prefer_system_certs']
+        else: prefer_system_certs = False
+        if 'verbose' in _: verbose = _['verbose']; del _['verbose']
+        else: verbose = False
+        if 'source_address' in _: source_address = _['source_address']; del _['source_address']
+        else: source_address = None
+        if 'proxies' in _: proxies = _['proxies']; del _['proxies']
+        else: proxies = None
+        if 'timeout' in _: timeout = _['timeout']; del _['timeout']
+        else: timeout = None
+        if 'cookiejar' in _: cookiejar = _['cookiejar']; del _['cookiejar']
+        else: cookiejar = None
+        if 'headers' in _: headers = _['headers']; del _['headers']
+        else: headers = None
+        logger = _['logger']; del _['logger']
 
         self._logger = logger
         self.headers = headers or {}
         self.cookiejar = cookiejar if cookiejar is not None else YoutubeDLCookieJar()
-        self.timeout = float(timeout or DEFAULT_TIMEOUT)
+        self.timeout = timeout or DEFAULT_TIMEOUT
         self.proxies = proxies or {}
         self.source_address = source_address
         self.verbose = verbose
@@ -247,179 +235,166 @@ class RequestHandler(abc.ABC):
         self._client_cert = client_cert or {}
         self.verify = verify
         self.legacy_ssl_support = legacy_ssl_support
-        super().__init__()
+        super(RequestHandler, self).__init__()
 
     def _make_sslcontext(self, legacy_ssl_support=None):
         return make_ssl_context(
             verify=self.verify,
-            legacy_support=legacy_ssl_support if legacy_ssl_support is not None else self.legacy_ssl_support,
             use_certifi=not self.prefer_system_certs,
-            **self._client_cert,
-        )
+            legacy_support=self.legacy_ssl_support if legacy_ssl_support is None else legacy_ssl_support,
+            client_certificate=self._client_cert)
 
     def _merge_headers(self, request_headers):
         return HTTPHeaderDict(self.headers, request_headers)
 
-    def _prepare_headers(self, request: Request, headers: HTTPHeaderDict) -> None:  # noqa: B027
-        """Additional operations to prepare headers before building. To be extended by subclasses.
+    def _prepare_headers(self, request, headers):  # noqa: B027
+        u"""Additional operations to prepare headers before building. To be extended by subclasses.
         @param request: Request object
         @param headers: Merged headers to prepare
         """
 
-    def _get_headers(self, request: Request) -> dict[str, str]:
-        """
+    def _get_headers(self, request):
+        u"""
         Get headers for external use.
         Subclasses may define a _prepare_headers method to modify headers after merge but before building.
         """
         headers = self._merge_headers(request.headers)
         self._prepare_headers(request, headers)
-        if request.extensions.get('keep_header_casing'):
+        if request.extensions.get(u'keep_header_casing'):
             return headers.sensitive()
         return dict(headers)
 
     def _calculate_timeout(self, request):
-        return float(request.extensions.get('timeout') or self.timeout)
+        return float(request.extensions.get(u'timeout') or self.timeout)
 
     def _get_cookiejar(self, request):
-        cookiejar = request.extensions.get('cookiejar')
+        cookiejar = request.extensions.get(u'cookiejar')
         return self.cookiejar if cookiejar is None else cookiejar
 
     def _get_proxies(self, request):
         return (request.proxies or self.proxies).copy()
 
-    def _check_url_scheme(self, request: Request):
-        scheme = urllib.parse.urlparse(request.url).scheme.lower()
+    def _check_url_scheme(self, request):
+        scheme = urlparse.urlparse(request.url).scheme.lower()
         if self._SUPPORTED_URL_SCHEMES is not None and scheme not in self._SUPPORTED_URL_SCHEMES:
-            raise UnsupportedRequest(f'Unsupported url scheme: "{scheme}"')
+            raise UnsupportedRequest('Unsupported url scheme: "%s"' % scheme)
         return scheme  # for further processing
 
     def _check_proxies(self, proxies):
         for proxy_key, proxy_url in proxies.items():
             if proxy_url is None:
                 continue
-            if proxy_key == 'no':
+            if proxy_key == u'no':
                 if self._SUPPORTED_FEATURES is not None and Features.NO_PROXY not in self._SUPPORTED_FEATURES:
-                    raise UnsupportedRequest('"no" proxy is not supported')
+                    raise UnsupportedRequest(u'"no" proxy is not supported')
                 continue
             if (
-                proxy_key == 'all'
+                proxy_key == u'all'
                 and self._SUPPORTED_FEATURES is not None
                 and Features.ALL_PROXY not in self._SUPPORTED_FEATURES
             ):
-                raise UnsupportedRequest('"all" proxy is not supported')
+                raise UnsupportedRequest(u'"all" proxy is not supported')
 
             # Unlikely this handler will use this proxy, so ignore.
             # This is to allow a case where a proxy may be set for a protocol
             # for one handler in which such protocol (and proxy) is not supported by another handler.
-            if self._SUPPORTED_URL_SCHEMES is not None and proxy_key not in (*self._SUPPORTED_URL_SCHEMES, 'all'):
+            if self._SUPPORTED_URL_SCHEMES is not None and proxy_key not in self._SUPPORTED_URL_SCHEMES + (u'all',):
                 continue
 
             if self._SUPPORTED_PROXY_SCHEMES is None:
-                # Skip proxy scheme checks
-                continue
+                raise UnsupportedRequest('Proxies are not supported by this handler')
 
             try:
-                if urllib.request._parse_proxy(proxy_url)[0] is None:
+                if urllib2._parse_proxy(proxy_url)[0] is None:
                     # Scheme-less proxies are not supported
-                    raise UnsupportedRequest(f'Proxy "{proxy_url}" missing scheme')
-            except ValueError as e:
+                    raise UnsupportedRequest('Proxy "%s" missing scheme' % proxy_url)
+            except ValueError, e:
                 # parse_proxy may raise on some invalid proxy urls such as "/a/b/c"
-                raise UnsupportedRequest(f'Invalid proxy url "{proxy_url}": {e}')
+                raise UnsupportedRequest('Invalid proxy url "%s": %s' % (proxy_url, e))
 
-            scheme = urllib.parse.urlparse(proxy_url).scheme.lower()
+            scheme = urlparse.urlparse(proxy_url).scheme.lower()
             if scheme not in self._SUPPORTED_PROXY_SCHEMES:
-                raise UnsupportedRequest(f'Unsupported proxy type: "{scheme}"')
+                raise UnsupportedRequest('Unsupported proxy type: "%s"' % scheme)
 
     def _check_extensions(self, extensions):
-        """Check extensions for unsupported extensions. Subclasses should extend this."""
-        assert isinstance(extensions.get('cookiejar'), (YoutubeDLCookieJar, NoneType))
-        assert isinstance(extensions.get('timeout'), (float, int, NoneType))
-        assert isinstance(extensions.get('legacy_ssl'), (bool, NoneType))
-        assert isinstance(extensions.get('keep_header_casing'), (bool, NoneType))
+        u"""Check extensions for unsupported extensions. Subclasses should extend this."""
+        assert isinstance(extensions.get(u'cookiejar'), (YoutubeDLCookieJar, type(None)))
+        assert isinstance(extensions.get(u'timeout'), (float, int, type(None)))
+        assert isinstance(extensions.get(u'legacy_ssl'), (bool, type(None)))
+        assert isinstance(extensions.get(u'keep_header_casing'), (bool, type(None)))
 
     def _validate(self, request):
         self._check_url_scheme(request)
-        self._check_proxies(request.proxies or self.proxies)
+        self._check_proxies(request.proxies)
         extensions = request.extensions.copy()
         self._check_extensions(extensions)
         if extensions:
-            # TODO: add support for optional extensions
-            raise UnsupportedRequest(f'Unsupported extensions: {", ".join(extensions.keys())}')
+            raise UnsupportedRequest('Unsupported extensions: %s' % ", ".join(extensions.keys()))
 
     @wrap_request_errors
-    def validate(self, request: Request):
+    def validate(self, request):
         if not isinstance(request, Request):
-            raise TypeError('Expected an instance of Request')
+            raise TypeError(u'Expected an instance of Request')
         self._validate(request)
 
     @wrap_request_errors
-    def send(self, request: Request) -> Response:
+    def send(self, request):
         if not isinstance(request, Request):
-            raise TypeError('Expected an instance of Request')
+            raise TypeError(u'Expected an instance of Request')
         return self._send(request)
 
     @abc.abstractmethod
-    def _send(self, request: Request):
-        """Handle a request from start to finish. Redefine in subclasses."""
+    def _send(self, request):
+        u"""Handle a request from start to finish. Redefine in subclasses."""
         pass
 
     def close(self):  # noqa: B027
         pass
 
     @classproperty
-    def RH_NAME(cls):
-        return cls.__name__[:-2]
-
-    @classproperty
     def RH_KEY(cls):
-        assert cls.__name__.endswith('RH'), 'RequestHandler class names must end with "RH"'
+        assert cls.__name__.endswith(u'RH'), u'RequestHandler class names must end with "RH"'
         return cls.__name__[:-2]
 
     def __enter__(self):
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
 
-class Request:
-    """
+class Request(object):
+    u"""
     Represents a request to be made.
     Partially backwards-compatible with urllib.request.Request.
 
-    @param url: url to send. Will be sanitized.
-    @param data: payload data to send. Must be bytes, iterable of bytes, a file-like object or None
-    @param headers: headers to send.
-    @param proxies: proxy dict mapping of proto:proxy to use for the request and any redirects.
-    @param query: URL query parameters to update the url with.
-    @param method: HTTP method to use. If no method specified, will use POST if payload data is present else GET
-    @param extensions: Dictionary of Request extensions to add, as supported by handlers.
+    This class is not meant to be used directly by the user.
+    Instead, it is used by the YoutubeDL class to handle all network requests.
     """
 
     def __init__(
             self,
-            url: str,
-            data: RequestData = None,
-            headers: typing.Mapping | None = None,
-            proxies: dict | None = None,
-            query: dict | None = None,
-            method: str | None = None,
-            extensions: dict | None = None,
+            url,
+            data=None,
+            headers=None,
+            proxies=None,
+            query=None,
+            method=None,
+            extensions=None,
     ):
 
         self._headers = HTTPHeaderDict()
-        self._data = None
-
-        if query:
-            url = update_url_query(url, query)
-
         self.url = url
         self.method = method
-        if headers:
-            self.headers = headers
-        self.data = data  # note: must be done after setting headers
+        # Must be set after method since it can affect the method
+        self.data = data
+        self.headers = headers or {}
         self.proxies = proxies or {}
         self.extensions = extensions or {}
+
+        # urllib.request.Request compatibility
+        self.origin_req_host = None
+        self.unverifiable = False
 
     @property
     def url(self):
@@ -427,173 +402,168 @@ class Request:
 
     @url.setter
     def url(self, url):
-        if not isinstance(url, str):
-            raise TypeError('url must be a string')
-        elif url.startswith('//'):
-            url = 'http:' + url
+        if not isinstance(url, (str, unicode)):
+            raise TypeError(u'url must be a string')
+        elif url.startswith(u'//'):
+            url = u'http:' + url
         self._url = normalize_url(url)
 
     @property
     def method(self):
-        return self._method or ('POST' if self.data is not None else 'GET')
+        return self._method or (u'POST' if self.data is not None else u'GET')
 
     @method.setter
     def method(self, method):
         if method is None:
             self._method = None
-        elif isinstance(method, str):
+        elif isinstance(method, (str, unicode)):
             self._method = method.upper()
         else:
-            raise TypeError('method must be a string')
+            raise TypeError(u'method must be a string')
 
     @property
     def data(self):
         return self._data
 
     @data.setter
-    def data(self, data: RequestData):
+    def data(self, data):
         # Try catch some common mistakes
         if data is not None and (
-            not isinstance(data, (bytes, io.IOBase, Iterable)) or isinstance(data, (str, Mapping))
+            not isinstance(data, (bytes, io.IOBase, Iterable)) or isinstance(data, (unicode, Mapping))
         ):
-            raise TypeError('data must be bytes, iterable of bytes, or a file-like object')
+            raise TypeError(u'data must be bytes, iterable of bytes, or a file-like object')
 
         if data == self._data and self._data is None:
-            self.headers.pop('Content-Length', None)
+            self.headers.pop(u'Content-Length', None)
 
         # https://docs.python.org/3/library/urllib.request.html#urllib.request.Request.data
         if data != self._data:
             if self._data is not None:
-                self.headers.pop('Content-Length', None)
+                self.headers.pop(u'Content-Length', None)
             self._data = data
 
         if self._data is None:
-            self.headers.pop('Content-Type', None)
+            self.headers.pop(u'Content-Type', None)
 
-        if 'Content-Type' not in self.headers and self._data is not None:
-            self.headers['Content-Type'] = 'application/x-www-form-urlencoded'
+        if u'Content-Type' not in self.headers and self._data is not None:
+            self.headers[u'Content-Type'] = u'application/x-www-form-urlencoded'
 
     @property
-    def headers(self) -> HTTPHeaderDict:
+    def headers(self):
         return self._headers
 
     @headers.setter
-    def headers(self, new_headers: Mapping):
-        """Replaces headers of the request. If not a HTTPHeaderDict, it will be converted to one."""
+    def headers(self, new_headers):
+        u"""Replaces headers of the request. If not a HTTPHeaderDict, it will be converted to one."""
         if isinstance(new_headers, HTTPHeaderDict):
             self._headers = new_headers
         elif isinstance(new_headers, Mapping):
             self._headers = HTTPHeaderDict(new_headers)
         else:
-            raise TypeError('headers must be a mapping')
+            raise TypeError(u'headers must be a mapping')
 
     def update(self, url=None, data=None, headers=None, query=None, extensions=None):
         self.data = data if data is not None else self.data
+        self.url = update_url_query(url or self.url, query)
         self.headers.update(headers or {})
         self.extensions.update(extensions or {})
-        self.url = update_url_query(url or self.url, query or {})
 
-    def copy(self):
-        return self.__class__(
-            url=self.url,
-            headers=copy.deepcopy(self.headers),
-            proxies=copy.deepcopy(self.proxies),
-            data=self._data,
-            extensions=copy.copy(self.extensions),
-            method=self._method,
+    def __repr__(self):
+        return '<Request for %s at %s>' % (
+            self.url,
+            hex(id(self))
         )
 
 
-HEADRequest = functools.partial(Request, method='HEAD')
-PATCHRequest = functools.partial(Request, method='PATCH')
-PUTRequest = functools.partial(Request, method='PUT')
+HEADRequest = functools.partial(Request, method=u'HEAD')
+PATCHRequest = functools.partial(Request, method=u'PATCH')
+PUTRequest = functools.partial(Request, method=u'PUT')
 
 
 class Response(io.IOBase):
-    """
+    u"""
     Base class for HTTP response adapters.
 
     By default, it provides a basic wrapper for a file-like response object.
+    It is also partially backwards-compatible with `urllib.response.addinfourl`.
 
-    Interface partially backwards-compatible with addinfourl and http.client.HTTPResponse.
-
-    @param fp: Original, file-like, response.
-    @param url: URL that this is a response of.
-    @param headers: response headers.
-    @param status: Response HTTP status code. Default is 200 OK.
-    @param reason: HTTP status reason. Will use built-in reasons based on status code if not provided.
-    @param extensions: Dictionary of handler-specific response extensions.
+    The Response object is responsible for:
+    - Exposing the response body as a file-like object
+    - Exposing the response headers
+    - Exposing the response status code and reason
+    - Exposing the response URL
     """
 
     def __init__(
             self,
-            fp: io.IOBase,
-            url: str,
-            headers: Mapping[str, str],
-            status: int = 200,
-            reason: str | None = None,
-            extensions: dict | None = None,
+            fp,
+            url,
+            headers,
+            status=200,
+            reason=None,
+            extensions=None,
     ):
 
         self.fp = fp
-        self.headers = Message()
-        for name, value in headers.items():
-            self.headers.add_header(name, value)
-        self.status = status
         self.url = url
-        try:
-            self.reason = reason or HTTPStatus(status).phrase
-        except ValueError:
-            self.reason = None
+        self.headers = HTTPHeaderDict(headers)
+        self.status = status
+        self.reason = reason
         self.extensions = extensions or {}
+
+    def __repr__(self):
+        return '<Response for %s at %s>' % (
+            self.url,
+            hex(id(self))
+        )
 
     def readable(self):
         return self.fp.readable()
 
-    def read(self, amt: int | None = None) -> bytes:
+    def read(self, amt=None):
         # Expected errors raised here should be of type RequestError or subclasses.
         # Subclasses should redefine this method with more precise error handling.
         try:
             return self.fp.read(amt)
-        except Exception as e:
-            raise TransportError(cause=e) from e
+        except Exception, e:
+            raise TransportError(cause=e)
 
     def close(self):
         self.fp.close()
-        return super().close()
+        return super(Response, self).close()
 
     def get_header(self, name, default=None):
-        """Get header for name.
+        u"""Get header for name.
         If there are multiple matching headers, return all seperated by comma."""
         headers = self.headers.get_all(name)
         if not headers:
             return default
-        if name.title() == 'Set-Cookie':
+        if name.title() == u'Set-Cookie':
             # Special case, only get the first one
             # https://www.rfc-editor.org/rfc/rfc9110.html#section-5.3-4.1
             return headers[0]
-        return ', '.join(headers)
+        return u', '.join(headers)
 
     # The following methods are for compatability reasons and are deprecated
     @property
     def code(self):
-        deprecation_warning('Response.code is deprecated, use Response.status', stacklevel=2)
+        deprecation_warning(u'Response.code is deprecated, use Response.status', stacklevel=2)
         return self.status
 
     def getcode(self):
-        deprecation_warning('Response.getcode() is deprecated, use Response.status', stacklevel=2)
+        deprecation_warning(u'Response.getcode() is deprecated, use Response.status', stacklevel=2)
         return self.status
 
     def geturl(self):
-        deprecation_warning('Response.geturl() is deprecated, use Response.url', stacklevel=2)
+        deprecation_warning(u'Response.geturl() is deprecated, use Response.url', stacklevel=2)
         return self.url
 
     def info(self):
-        deprecation_warning('Response.info() is deprecated, use Response.headers', stacklevel=2)
+        deprecation_warning(u'Response.info() is deprecated, use Response.headers', stacklevel=2)
         return self.headers
 
     def getheader(self, name, default=None):
-        deprecation_warning('Response.getheader() is deprecated, use Response.get_header', stacklevel=2)
+        deprecation_warning(u'Response.getheader() is deprecated, use Response.get_header', stacklevel=2)
         return self.get_header(name, default)
 
 
@@ -601,4 +571,13 @@ if typing.TYPE_CHECKING:
     RequestData = bytes | Iterable[bytes] | typing.IO | None
     Preference = typing.Callable[[RequestHandler, Request], int]
 
-_RH_PREFERENCES: set[Preference] = set()
+_RH_PREFERENCES = set()
+from ..cookies import YoutubeDLCookieJar
+NoneType = type(None)
+if typing.TYPE_CHECKING:
+    RequestData = str | Iterable[str] | typing.IO | None
+    Preference = typing.Callable[[RequestHandler, Request], int]
+else:
+    RequestData = (bytes, str, Iterable, io.IOBase, type(None))
+    Preference = typing.Callable
+_RH_PREFERENCES = set()

@@ -1,9 +1,12 @@
+# coding: utf-8
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import time
-import urllib.parse
 
 from . import get_suitable_downloader
 from .fragment import FragmentFD
 from ..utils import ReExtractInfo, update_url_query, urljoin
+from ..compat._legacy import compat_urllib_parse as urllib_parse
 
 
 class DashSegmentsFD(FragmentFD):
@@ -25,7 +28,12 @@ class DashSegmentsFD(FragmentFD):
 
         real_start = time.time()
 
-        requested_formats = [{**info_dict, **fmt} for fmt in info_dict.get('requested_formats', [])]
+        requested_formats = []
+        for fmt in info_dict.get('requested_formats', []):
+            new_fmt = info_dict.copy()
+            new_fmt.update(fmt)
+            requested_formats.append(new_fmt)
+
         args = []
         for fmt in requested_formats or [info_dict]:
             # Re-extract if --load-info-json is used and 'fragments' was originally a generator
@@ -52,13 +60,13 @@ class DashSegmentsFD(FragmentFD):
             extra_query = None
             extra_param_to_segment_url = info_dict.get('extra_param_to_segment_url')
             if extra_param_to_segment_url:
-                extra_query = urllib.parse.parse_qs(extra_param_to_segment_url)
+                extra_query = urllib_parse.parse_qs(extra_param_to_segment_url)
 
             fragments_to_download = self._get_fragments(fmt, ctx, extra_query)
 
             if real_downloader:
                 self.to_screen(
-                    f'[{self.FD_NAME}] Fragment downloads will be delegated to {real_downloader.get_basename()}')
+                    '[{0}] Fragment downloads will be delegated to {1}'.format(self.FD_NAME, real_downloader.get_basename()))
                 info_dict['fragments'] = list(fragments_to_download)
                 fd = real_downloader(self.ydl, self.params)
                 return fd.real_download(filename, info_dict)

@@ -1,10 +1,18 @@
-import concurrent.futures
+# coding: utf-8
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import contextlib
 import json
 import math
 import os
 import struct
 import time
+
+try:
+    import concurrent.futures
+    HAVE_CONCURRENT_FUTURES = True
+except ImportError:
+    HAVE_CONCURRENT_FUTURES = False
 
 from .common import FileDownloader
 from .http import HttpFD
@@ -65,8 +73,8 @@ class FragmentFD(FileDownloader):
         return self.report_retry(err, count, retries, frag_index)
 
     def report_skip_fragment(self, frag_index, err=None):
-        err = f' {err};' if err else ''
-        self.to_screen(f'[download]{err} Skipping fragment {frag_index:d} ...')
+        err = ' {0};'.format(err) if err else ''
+        self.to_screen('[download]{0} Skipping fragment {1:d} ...'.format(err, frag_index))
 
     def _prepare_url(self, info_dict, url):
         headers = info_dict.get('http_headers')
@@ -134,8 +142,8 @@ class FragmentFD(FileDownloader):
             return None
         try:
             down, frag_sanitized = self.sanitize_open(ctx['fragment_filename_sanitized'], 'rb')
-        except FileNotFoundError:
-            if ctx.get('live'):
+        except (IOError, OSError) as e:
+            if e.errno == errno.ENOENT and ctx.get('live'):
                 return None
             raise
         ctx['fragment_filename_sanitized'] = frag_sanitized
@@ -162,16 +170,17 @@ class FragmentFD(FileDownloader):
                 total_frags_str += ' (not including %d ad)' % ad_frags
         else:
             total_frags_str = 'unknown (live)'
-        self.to_screen(f'[{self.FD_NAME}] Total fragments: {total_frags_str}')
+        self.to_screen('[{0}] Total fragments: {1}'.format(self.FD_NAME, total_frags_str))
         self.report_destination(ctx['filename'])
-        dl = HttpQuietDownloader(self.ydl, {
-            **self.params,
+        params = self.params.copy()
+        params.update({
             'noprogress': True,
             'test': False,
             'sleep_interval': 0,
             'max_sleep_interval': 0,
             'sleep_interval_subtitles': 0,
         })
+        dl = HttpQuietDownloader(self.ydl, params)
         tmpfilename = self.temp_name(ctx['filename'])
         open_mode = 'wb'
 
@@ -198,7 +207,7 @@ class FragmentFD(FileDownloader):
                         '.ytdl file is corrupt' if is_corrupt else
                         'Inconsistent state of incomplete fragment download')
                     self.report_warning(
-                        f'{message}. Restarting from the beginning ...')
+                        '{0}. Restarting from the beginning ...'.format(message))
                     ctx['fragment_index'] = resume_len = 0
                     if 'ytdl_corrupt' in ctx:
                         del ctx['ytdl_corrupt']
@@ -328,7 +337,7 @@ class FragmentFD(FileDownloader):
                 total_frags_str += ' (not including %d ad)' % ad_frags
         else:
             total_frags_str = 'unknown (live)'
-        self.to_screen(f'[{self.FD_NAME}] Total fragments: {total_frags_str}')
+        self.to_screen('[{0}] Total fragments: {1}'.format(self.FD_NAME, total_frags_str))
 
         tmpfilename = self.temp_name(ctx['filename'])
 
@@ -373,7 +382,11 @@ class FragmentFD(FileDownloader):
         max_progress = len(args)
         if max_progress == 1:
             return self.download_and_append_fragments(*args[0], **kwargs)
+
         max_workers = self.params.get('concurrent_fragment_downloads', 1)
+        if not HAVE_CONCURRENT_FUTURES:
+            max_workers = 1
+
         if max_progress > 1:
             self._prepare_multiline_status(max_progress)
         is_live = any(traverse_obj(args, (..., 2, 'is_live')))
@@ -381,26 +394,44 @@ class FragmentFD(FileDownloader):
         def thread_func(idx, ctx, fragments, info_dict, tpe):
             ctx['max_progress'] = max_progress
             ctx['progress_idx'] = idx
+            kwargs['interrupt_trigger'] = interrupt_trigger
             return self.download_and_append_fragments(
-                ctx, fragments, info_dict, **kwargs, tpe=tpe, interrupt_trigger=interrupt_trigger)
+                ctx, fragments, info_dict, **kwargs)
 
-        class FTPE(concurrent.futures.ThreadPoolExecutor):
-            # has to stop this or it's going to wait on the worker thread itself
-            def __exit__(self, exc_type, exc_val, exc_tb):
-                pass
+        if HAVE_CONCURRENT_FUTURES:
+            class FTPE(concurrent.futures.ThreadPoolExecutor):
+                # has to stop this or it's going to wait on the worker thread itself
+                def __exit__(self, exc_type, exc_val, exc_tb):
+                    pass
 
-        if os.name == 'nt':
-            def future_result(future):
-                while True:
-                    try:
-                        return future.result(0.1)
-                    except KeyboardInterrupt:
-                        raise
-                    except concurrent.futures.TimeoutError:
-                        continue
+            if os.name == 'nt':
+                def future_result(future):
+                    while True:
+                        try:
+                            return future.result(0.1)
+                        except KeyboardInterrupt:
+                            raise
+                        except concurrent.futures.TimeoutError:
+                            continue
+            else:
+                def future_result(future):
+                    return future.result()
         else:
-            def future_result(future):
-                return future.result()
+            # dummy implementation
+            class FTPE(object):
+                def __init__(self, _):
+                    pass
+                def submit(self, fn, *args, **kwargs):
+                    class Future(object):
+                        def __init__(self, res):
+                            self._res = res
+                        def result(self):
+                            return self._res
+                    return Future(fn(*args, **kwargs))
+                def shutdown(self, wait):
+                    pass
+            future_result = lambda future: future.result()
+
 
         def interrupt_trigger_iter(fg):
             for f in fg:
@@ -428,10 +459,14 @@ class FragmentFD(FileDownloader):
         # so returning a intermediate result here instead of KeyboardInterrupt on live
         return result
 
-    def download_and_append_fragments(
-            self, ctx, fragments, info_dict, *, is_fatal=(lambda idx: False),
-            pack_func=(lambda content, idx: content), finish_func=None,
-            tpe=None, interrupt_trigger=(True, )):
+    def download_and_append_fragments(self, ctx, fragments, info_dict, **kwargs):
+        is_fatal = kwargs.pop('is_fatal', lambda idx: False)
+        pack_func = kwargs.pop('pack_func', lambda content, idx: content)
+        finish_func = kwargs.pop('finish_func', None)
+        tpe = kwargs.pop('tpe', None)
+        interrupt_trigger = kwargs.pop('interrupt_trigger', (True, ))
+        if kwargs:
+            raise TypeError('download_and_append_fragments() got an unexpected keyword argument "{0}"'.format(list(kwargs.keys())[0]))
 
         if not self.params.get('skip_unavailable_fragments', True):
             is_fatal = lambda _: True
@@ -476,7 +511,7 @@ class FragmentFD(FileDownloader):
                 self.report_skip_fragment(frag_index, 'fragment not found')
             else:
                 ctx['dest_stream'].close()
-                self.report_error(f'fragment {frag_index} not found, unable to continue')
+                self.report_error('fragment {0} not found, unable to continue'.format(frag_index))
                 return False
             return True
 
@@ -484,6 +519,9 @@ class FragmentFD(FileDownloader):
 
         max_workers = math.ceil(
             self.params.get('concurrent_fragment_downloads', 1) / ctx.get('max_progress', 1))
+        if not HAVE_CONCURRENT_FUTURES:
+            max_workers = 1
+
         if max_workers > 1:
             def _download_fragment(fragment):
                 ctx_copy = ctx.copy()

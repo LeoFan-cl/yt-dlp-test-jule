@@ -1,83 +1,81 @@
-import collections
-import contextlib
-import functools
-import importlib
-import sys
-import types
-
-_NO_ATTRIBUTE = object()
-
-_Package = collections.namedtuple('Package', ('name', 'version'))
-
-
-def get_package_info(module):
-    return _Package(
-        name=getattr(module, '_yt_dlp__identifier', module.__name__),
-        version=str(next(filter(None, (
-            getattr(module, attr, None)
-            for attr in ('_yt_dlp__version', '__version__', 'version_string', 'version')
-        )), None)))
-
-
-def _is_package(module):
-    return '__path__' in vars(module)
-
-
-def _is_dunder(name):
-    return name.startswith('__') and name.endswith('__')
-
-
-class EnhancedModule(types.ModuleType):
-    def __bool__(self):
-        return vars(self).get('__bool__', lambda: True)()
-
-    def __getattribute__(self, attr):
-        try:
-            ret = super().__getattribute__(attr)
-        except AttributeError:
-            if _is_dunder(attr):
-                raise
-            getter = getattr(self, '__getattr__', None)
-            if not getter:
-                raise
-            ret = getter(attr)
-        return ret.fget() if isinstance(ret, property) else ret
-
-
-def passthrough_module(parent, child, allowed_attributes=(..., ), *, callback=lambda _: None):
-    """Passthrough parent module into a child module, creating the parent if necessary"""
-    def __getattr__(attr):
-        if _is_package(parent):
-            with contextlib.suppress(ModuleNotFoundError):
-                return importlib.import_module(f'.{attr}', parent.__name__)
-
-        ret = from_child(attr)
-        if ret is _NO_ATTRIBUTE:
-            raise AttributeError(f'module {parent.__name__} has no attribute {attr}')
-        callback(attr)
-        return ret
-
-    @functools.cache
-    def from_child(attr):
-        nonlocal child
-        if attr not in allowed_attributes:
-            if ... not in allowed_attributes or _is_dunder(attr):
-                return _NO_ATTRIBUTE
-
-        if isinstance(child, str):
-            child = importlib.import_module(child, parent.__name__)
-
-        if _is_package(child):
-            with contextlib.suppress(ImportError):
-                return passthrough_module(f'{parent.__name__}.{attr}',
-                                          importlib.import_module(f'.{attr}', child.__name__))
-
-        with contextlib.suppress(AttributeError):
-            return getattr(child, attr)
-
-        return _NO_ATTRIBUTE
-
-    parent = sys.modules.get(parent, types.ModuleType(parent))
-    parent.__class__ = EnhancedModule
-    parent.__getattr__ = __getattr__
-    return parent
+b'--- ./yt_dlp/compat/compat_utils.py\t(original)'
+b'+++ ./yt_dlp/compat/compat_utils.py\t(refactored)'
+b'@@ -1,51 +1,56 @@'
+b'+from __future__ import with_statement'
+b'+from __future__ import absolute_import'
+b' import collections'
+b' import contextlib'
+b' import functools'
+b' import importlib'
+b' import sys'
+b' import types'
+b'+from itertools import ifilter'
+b' '
+b' _NO_ATTRIBUTE = object()'
+b' '
+b"-_Package = collections.namedtuple('Package', ('name', 'version'))"
+b"+_Package = collections.namedtuple(u'Package', (u'name', u'version'))"
+b' '
+b' '
+b' def get_package_info(module):'
+b'     return _Package('
+b"-        name=getattr(module, '_yt_dlp__identifier', module.__name__),"
+b'-        version=str(next(filter(None, ('
+b"+        name=getattr(module, u'_yt_dlp__identifier', module.__name__),"
+b'+        version=unicode(ifilter(None, ('
+b'             getattr(module, attr, None)'
+b"-            for attr in ('_yt_dlp__version', '__version__', 'version_string', 'version')"
+b'-        )), None)))'
+b"+            for attr in (u'_yt_dlp__version', u'__version__', u'version_string', u'version')"
+b'+        )), None.next()))'
+b' '
+b' '
+b' def _is_package(module):'
+b"-    return '__path__' in vars(module)"
+b"+    return u'__path__' in vars(module)"
+b' '
+b' '
+b' def _is_dunder(name):'
+b"-    return name.startswith('__') and name.endswith('__')"
+b"+    return name.startswith(u'__') and name.endswith(u'__')"
+b' '
+b' '
+b' class EnhancedModule(types.ModuleType):'
+b'-    def __bool__(self):'
+b"-        return vars(self).get('__bool__', lambda: True)()"
+b'+    def __nonzero__(self):'
+b"+        return vars(self).get(u'__bool__', lambda: True)()"
+b' '
+b'     def __getattribute__(self, attr):'
+b'         try:'
+b'-            ret = super().__getattribute__(attr)'
+b'+            ret = super(EnhancedModule, self).__getattribute__(attr)'
+b'         except AttributeError:'
+b'             if _is_dunder(attr):'
+b'                 raise'
+b"-            getter = getattr(self, '__getattr__', None)"
+b"+            getter = getattr(self, u'__getattr__', None)"
+b'             if not getter:'
+b'                 raise'
+b'             ret = getter(attr)'
+b'         return ret.fget() if isinstance(ret, property) else ret'
+b' '
+b' '
+b'-def passthrough_module(parent, child, allowed_attributes=(..., ), *, callback=lambda _: None):'
+b'-    """Passthrough parent module into a child module, creating the parent if necessary"""'
+b'+def passthrough_module(parent, child, allowed_attributes=(..., ), **_3to2kwargs):'
+b"+    if 'callback' in _3to2kwargs: callback = _3to2kwargs['callback']; del _3to2kwargs['callback']"
+b'+    else: callback = lambda _: None'
+b'+    u"""Passthrough parent module into a child module, creating the parent if necessary"""'
+b'     def __getattr__(attr):'
+b'         if _is_package(parent):'
+b'             with contextlib.suppress(ModuleNotFoundError):'
+b'@@ -64,7 +69,7 @@'
+b'             if ... not in allowed_attributes or _is_dunder(attr):'
+b'                 return _NO_ATTRIBUTE'
+b' '
+b'-        if isinstance(child, str):'
+b'+        if isinstance(child, unicode):'
+b'             child = importlib.import_module(child, parent.__name__)'
+b' '
+b'         if _is_package(child):'

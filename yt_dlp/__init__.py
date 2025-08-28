@@ -1,18 +1,20 @@
+from __future__ import print_function, unicode_literals, absolute_import
 import sys
 
-if sys.version_info < (3, 9):
+if sys.version_info < (2, 7):
     raise ImportError(
-        f'You are using an unsupported version of Python. Only Python versions 3.9 and above are supported by yt-dlp')  # noqa: F541
+        'You are using an unsupported version of Python. Only Python versions 2.7 and above are supported by yt-dlp')
 
 __license__ = 'The Unlicense'
-
 import collections
 import getpass
 import itertools
+from itertools import ifilter, imap
 import optparse
 import os
 import re
 import traceback
+from io import open
 
 from .cookies import SUPPORTED_BROWSERS, SUPPORTED_KEYRINGS, CookieLoadError
 from .downloader.external import get_external_downloader
@@ -87,7 +89,7 @@ def get_urls(urls, batchfile, verbose):
             if verbose == 1:
                 write_string('[debug] Batch file urls: ' + repr(batch_urls) + '\n')
         except OSError:
-            _exit(f'ERROR: batch file {batchfile} could not be read')
+            _exit('ERROR: batch file {0} could not be read'.format(batchfile))
     _enc = preferredencoding()
     return [
         url.strip().decode(_enc, 'ignore') if isinstance(url, bytes) else url.strip()
@@ -106,16 +108,16 @@ def print_extractor_information(opts, urls):
             if ie == GenericIE:
                 matched_urls = [url for url, matched in urls.items() if not matched]
             else:
-                matched_urls = tuple(filter(ie.suitable, urls.keys()))
+                matched_urls = tuple(ifilter(ie.suitable, urls.keys()))
                 urls.update(dict.fromkeys(matched_urls, True))
-            out += ''.join(f'  {url}\n' for url in matched_urls)
+            out += ''.join('  {0}\n'.format(url) for url in matched_urls)
     elif opts.list_extractor_descriptions:
         _SEARCHES = ('cute kittens', 'slithering pythons', 'falling cat', 'angry poodle', 'purple fish', 'running tortoise', 'sleeping bunny', 'burping cow')
         out = '\n'.join(
             ie.description(markdown=False, search_examples=_SEARCHES)
             for ie in list_extractor_classes(opts.age_limit) if ie.working() and ie.IE_DESC is not False)
     # elif opts.ap_list_mso:
-    #     out = 'Supported TV Providers:\n{}\n'.format(render_table(
+    #     out = 'Supported TV Providers:\n{0}\n'.format(render_table(
     #         ['mso', 'mso name'],
     #         [[mso_id, mso_info['name']] for mso_id, mso_info in MSO_INFO.items()]))
     else:
@@ -129,7 +131,7 @@ def set_compat_opts(opts):
         if name not in opts.compat_opts:
             return False
         opts.compat_opts.discard(name)
-        opts.compat_opts.update([f'*{name}'])
+        opts.compat_opts.update(['*{0}'.format(name)])
         return True
 
     def set_default_compat(compat_name, opt_name, default=True, remove_compat=True):
@@ -190,17 +192,18 @@ def validate_options(opts):
 
     def validate_positive(name, value, strict=False):
         return validate(value is None or value > 0 or (not strict and value == 0),
-                        name, value, '{name} "{value}" must be positive' + ('' if strict else ' or 0'))
+                        name, value, '{{name}} "{0}" must be positive'.format(value) + ('' if strict else ' or 0'))
 
     def validate_minmax(min_val, max_val, min_name, max_name=None):
         if max_val is None or min_val is None or max_val >= min_val:
             return
         if not max_name:
-            min_name, max_name = f'min {min_name}', f'max {min_name}'
-        raise ValueError(f'{max_name} "{max_val}" must be must be greater than or equal to {min_name} "{min_val}"')
+            min_name, max_name = 'min {0}'.format(min_name), 'max {0}'.format(min_name)
+        raise ValueError('{0} "{1}" must be must be greater than or equal to {2} "{3}"'.format(
+            max_name, max_val, min_name, min_val))
 
     # Usernames and passwords
-    validate(sum(map(bool, (opts.usenetrc, opts.netrc_cmd, opts.username))) <= 1, '.netrc',
+    validate(sum(imap(bool, (opts.usenetrc, opts.netrc_cmd, opts.username))) <= 1, '.netrc',
              msg='{name}, netrc command and username/password are mutually exclusive options')
     validate(opts.password is None or opts.username is not None, 'account username', msg='{name} missing')
     validate(opts.ap_password is None or opts.ap_username is not None,
@@ -231,7 +234,8 @@ def validate_options(opts):
         validate_minmax(opts.sleep_interval, opts.max_sleep_interval, 'sleep interval')
 
     if opts.wait_for_video is not None:
-        min_wait, max_wait, *_ = map(parse_duration, [*opts.wait_for_video.split('-', 1), None])
+        parts = opts.wait_for_video.split('-', 1)
+        min_wait, max_wait, _ = list(imap(parse_duration, parts + [None] if len(parts) == 2 else parts))
         validate(min_wait is not None and not (max_wait is None and '-' in opts.wait_for_video),
                  'time range to wait for video', opts.wait_for_video)
         validate_minmax(min_wait, max_wait, 'time range to wait for video')
@@ -248,7 +252,7 @@ def validate_options(opts):
         opts.convertthumbnails = None
 
     validate_regex('merge output format', opts.merge_output_format,
-                   r'({0})(/({0}))*'.format('|'.join(map(re.escape, FFmpegMergerPP.SUPPORTED_EXTS))))
+                   r'({0})(/({0}))*'.format('|'.join(imap(re.escape, FFmpegMergerPP.SUPPORTED_EXTS))))
     validate_regex('audio format', opts.audioformat, FFmpegExtractAudioPP.FORMAT_RE)
     validate_in('subtitle format', opts.convertsubtitles, FFmpegSubtitlesConvertorPP.SUPPORTED_EXTS)
     validate_regex('thumbnail format', opts.convertthumbnails, FFmpegThumbnailsConvertorPP.FORMAT_RE)
@@ -268,8 +272,8 @@ def validate_options(opts):
         try:
             int_value = int(value)
         except (TypeError, ValueError):
-            validate(False, f'{name} retry count', value)
-        validate_positive(f'{name} retry count', int_value)
+            validate(False, '{0} retry count'.format(name), value)
+        validate_positive('{0} retry count'.format(name), int_value)
         return int_value
 
     opts.retries = parse_retries('download', opts.retries)
@@ -280,9 +284,10 @@ def validate_options(opts):
     # Retry sleep function
     def parse_sleep_func(expr):
         NUMBER_RE = r'\d+(?:\.\d+)?'
-        op, start, limit, step, *_ = (*tuple(re.fullmatch(
-            rf'(?:(linear|exp)=)?({NUMBER_RE})(?::({NUMBER_RE})?)?(?::({NUMBER_RE}))?',
-            expr.strip()).groups()), None, None)
+        m = re.match(
+            r'(?:(linear|exp)=)?({0})(?::({0})?)?(?::({0}))?$'.format(NUMBER_RE),
+            expr.strip())
+        op, start, limit, step = (m.groups() + (None, None))[:4]
 
         if op == 'exp':
             return lambda n: min(float(start) * (float(step or 2) ** n), float(limit or 'inf'))
@@ -297,7 +302,7 @@ def validate_options(opts):
         try:
             opts.retry_sleep[key] = parse_sleep_func(expr)
         except AttributeError:
-            raise ValueError(f'invalid {key} retry sleep expression {expr!r}')
+            raise ValueError('invalid {0} retry sleep expression {1!r}'.format(key, expr))
 
     # Bytes
     def validate_bytes(name, value, strict_positive=False):
@@ -320,21 +325,21 @@ def validate_options(opts):
     def validate_outtmpl(tmpl, msg):
         err = YoutubeDL.validate_outtmpl(tmpl)
         if err:
-            raise ValueError(f'invalid {msg} "{tmpl}": {err}')
+            raise ValueError('invalid {0} "{1}": {2}'.format(msg, tmpl, err))
 
     for k, tmpl in opts.outtmpl.items():
-        validate_outtmpl(tmpl, f'{k} output template')
+        validate_outtmpl(tmpl, '{0} output template'.format(k))
     for type_, tmpl_list in opts.forceprint.items():
         for tmpl in tmpl_list:
-            validate_outtmpl(tmpl, f'{type_} print template')
+            validate_outtmpl(tmpl, '{0} print template'.format(type_))
     for type_, tmpl_list in opts.print_to_file.items():
         for tmpl, file in tmpl_list:
-            validate_outtmpl(tmpl, f'{type_} print to file template')
-            validate_outtmpl(file, f'{type_} print to file filename')
+            validate_outtmpl(tmpl, '{0} print to file template'.format(type_))
+            validate_outtmpl(file, '{0} print to file filename'.format(type_))
     validate_outtmpl(opts.sponsorblock_chapter_title, 'SponsorBlock chapter title')
     for k, tmpl in opts.progress_template.items():
-        k = f'{k[:-6]} console title' if '-title' in k else f'{k} progress'
-        validate_outtmpl(tmpl, f'{k} template')
+        k = '{0} console title'.format(k[:-6]) if '-title' in k else '{0} progress'.format(k)
+        validate_outtmpl(tmpl, '{0} template'.format(k))
 
     outtmpl_default = opts.outtmpl.get('default')
     if outtmpl_default == '':
@@ -358,11 +363,11 @@ def validate_options(opts):
                 try:
                     chapters.append(re.compile(regex))
                 except re.error as err:
-                    raise ValueError(f'invalid {name} regex "{regex}" - {err}')
+                    raise ValueError('invalid {0} regex "{1}" - {2}'.format(name, regex, err))
                 continue
 
-            for range_ in map(str.strip, regex[1:].split(',')):
-                mobj = range_ != '-' and re.fullmatch(TIMESTAMP_RE, range_)
+            for range_ in imap(unicode.strip, regex[1:].split(',')):
+                mobj = range_ != '-' and re.match(TIMESTAMP_RE + '$', range_)
                 dur = mobj and [parse_timestamp(mobj.group('start') or '0'), parse_timestamp(mobj.group('end') or 'inf')]
                 signs = mobj and (mobj.group('start_sign'), mobj.group('end_sign'))
 
@@ -377,7 +382,7 @@ def validate_options(opts):
                     if dur[1] == float('-inf'):
                         err = '"-inf" is not a valid end'
                 if err:
-                    raise ValueError(f'invalid {name} time range "{regex}". {err}')
+                    raise ValueError('invalid {0} time range "{1}". {2}'.format(name, regex, err))
                 ranges.append(dur)
 
         return chapters, ranges, from_url
@@ -388,24 +393,24 @@ def validate_options(opts):
     # Cookies from browser
     if opts.cookiesfrombrowser:
         container = None
-        mobj = re.fullmatch(r'''(?x)
+        mobj = re.match(r'''(?x)
             (?P<name>[^+:]+)
             (?:\s*\+\s*(?P<keyring>[^:]+))?
             (?:\s*:\s*(?!:)(?P<profile>.+?))?
-            (?:\s*::\s*(?P<container>.+))?
+            (?:\s*::\s*(?P<container>.+))?$
         ''', opts.cookiesfrombrowser)
         if mobj is None:
-            raise ValueError(f'invalid cookies from browser arguments: {opts.cookiesfrombrowser}')
+            raise ValueError('invalid cookies from browser arguments: {0}'.format(opts.cookiesfrombrowser))
         browser_name, keyring, profile, container = mobj.group('name', 'keyring', 'profile', 'container')
         browser_name = browser_name.lower()
         if browser_name not in SUPPORTED_BROWSERS:
-            raise ValueError(f'unsupported browser specified for cookies: "{browser_name}". '
-                             f'Supported browsers are: {", ".join(sorted(SUPPORTED_BROWSERS))}')
+            raise ValueError('unsupported browser specified for cookies: "{0}". '
+                             'Supported browsers are: {1}'.format(browser_name, ", ".join(sorted(SUPPORTED_BROWSERS))))
         if keyring is not None:
             keyring = keyring.upper()
             if keyring not in SUPPORTED_KEYRINGS:
-                raise ValueError(f'unsupported keyring specified for cookies: "{keyring}". '
-                                 f'Supported keyrings are: {", ".join(sorted(SUPPORTED_KEYRINGS))}')
+                raise ValueError('unsupported keyring specified for cookies: "{0}". '
+                                 'Supported keyrings are: {1}'.format(keyring, ", ".join(sorted(SUPPORTED_KEYRINGS))))
         opts.cookiesfrombrowser = (browser_name, profile, keyring, container)
 
     if opts.impersonate is not None:
@@ -413,29 +418,29 @@ def validate_options(opts):
 
     # MetadataParser
     def metadataparser_actions(f):
-        if isinstance(f, str):
-            cmd = f'--parse-metadata {shell_quote(f)}'
+        if isinstance(f, unicode):
+            cmd = '--parse-metadata {0}'.format(shell_quote(f))
             try:
                 actions = [MetadataFromFieldPP.to_action(f)]
             except Exception as err:
-                raise ValueError(f'{cmd} is invalid; {err}')
+                raise ValueError('{0} is invalid; {1}'.format(cmd, err))
         else:
-            cmd = f'--replace-in-metadata {shell_quote(f)}'
-            actions = ((MetadataParserPP.Actions.REPLACE, x, *f[1:]) for x in f[0].split(','))
+            cmd = '--replace-in-metadata {0}'.format(shell_quote(f))
+            actions = ((MetadataParserPP.Actions.REPLACE, x) + f[1:] for x in f[0].split(','))
 
         for action in actions:
             try:
                 MetadataParserPP.validate_action(*action)
             except Exception as err:
-                raise ValueError(f'{cmd} is invalid; {err}')
+                raise ValueError('{0} is invalid; {1}'.format(cmd, err))
             yield action
 
     if opts.metafromtitle is not None:
-        opts.parse_metadata.setdefault('pre_process', []).append(f'title:{opts.metafromtitle}')
-    opts.parse_metadata = {
-        k: list(itertools.chain(*map(metadataparser_actions, v)))
+        opts.parse_metadata.setdefault('pre_process', []).append('title:{0}'.format(opts.metafromtitle))
+    opts.parse_metadata = dict(
+        (k, list(itertools.chain(*imap(metadataparser_actions, v))))
         for k, v in opts.parse_metadata.items()
-    }
+    )
 
     # Other options
     opts.plugin_dirs = opts.plugin_dirs
@@ -446,14 +451,14 @@ def validate_options(opts):
         try:
             tuple(PlaylistEntries.parse_playlist_items(opts.playlist_items))
         except Exception as err:
-            raise ValueError(f'Invalid playlist-items {opts.playlist_items!r}: {err}')
+            raise ValueError('Invalid playlist-items {0!r}: {1}'.format(opts.playlist_items, err))
 
     opts.geo_bypass_country, opts.geo_bypass_ip_block = None, None
     if opts.geo_bypass.lower() not in ('default', 'never'):
         try:
             GeoUtils.random_ipv4(opts.geo_bypass)
         except Exception:
-            raise ValueError(f'Unsupported --xff "{opts.geo_bypass}"')
+            raise ValueError('Unsupported --xff "{0}"'.format(opts.geo_bypass))
         if len(opts.geo_bypass) == 2:
             opts.geo_bypass_country = opts.geo_bypass
         else:
@@ -483,13 +488,13 @@ def validate_options(opts):
         ed = get_external_downloader(path)
         if ed is None:
             raise ValueError(
-                f'No such {format_field(proto, None, "%s ", ignore="default")}external downloader "{path}"')
+                'No such {0}external downloader "{1}"'.format(format_field(proto, None, "%s ", ignore="default"), path))
         elif ed and proto == 'default':
             default_downloader = ed.get_basename()
 
     for policy in opts.color.values():
         if policy not in ('always', 'auto', 'auto-tty', 'no_color', 'no_color-tty', 'never'):
-            raise ValueError(f'"{policy}" is not a valid color policy')
+            raise ValueError('"{0}" is not a valid color policy'.format(policy))
 
     warnings, deprecation_warnings = [], []
 
@@ -511,8 +516,8 @@ def validate_options(opts):
     # --(postprocessor/downloader)-args without name
     def report_args_compat(name, value, key1, key2=None, where=None):
         if key1 in value and key2 not in value:
-            warnings.append(f'{name.title()} arguments given without specifying name. '
-                            f'The arguments will be given to {where or f"all {name}s"}')
+            warnings.append('{0} arguments given without specifying name. '
+                            'The arguments will be given to {1}'.format(name.title(), where or 'all {0}'.format(name)))
             return True
         return False
 
@@ -535,7 +540,7 @@ def validate_options(opts):
         if val1 is NO_DEFAULT:
             val1 = getattr(opts, opt1)
         if val1:
-            warnings.append(f'{arg1} is ignored since {arg2} was given')
+            warnings.append('{0} is ignored since {1} was given'.format(arg1, arg2))
         setattr(opts, opt1, default)
 
     # Conflicting options
@@ -574,8 +579,8 @@ def validate_options(opts):
         if not val:
             return
         deprecation_warnings.append(
-            f'{old} is deprecated and may be removed in a future version. Use {new} instead' if new
-            else f'{old} is deprecated and may not work as expected')
+            '{0} is deprecated and may be removed in a future version. Use {1} instead'.format(old, new) if new
+            else '{0} is deprecated and may not work as expected'.format(old))
 
     report_deprecation(opts.sponskrub, '--sponskrub', '--sponsorblock-mark or --sponsorblock-remove')
     report_deprecation(not opts.prefer_ffmpeg, '--prefer-avconv', 'ffmpeg')
@@ -633,7 +638,8 @@ def validate_options(opts):
 
 
 def get_postprocessors(opts):
-    yield from opts.add_postprocessors
+    for pp in opts.add_postprocessors:
+        yield pp
 
     for when, actions in opts.parse_metadata.items():
         yield {
@@ -771,7 +777,7 @@ def parse_options(argv=None):
     try:
         warnings, deprecation_warnings = validate_options(opts)
     except ValueError as err:
-        parser.error(f'{err}\n')
+        parser.error('{0}\n'.format(err))
 
     postprocessors = list(get_postprocessors(opts))
 
@@ -994,7 +1000,7 @@ def _real_main(argv=None):
     # Dump user agent
     if opts.dump_user_agent:
         ua = traverse_obj(opts.headers, 'User-Agent', casesense=False, default=std_headers['User-Agent'])
-        write_string(f'{ua}\n', out=sys.stdout)
+        write_string('{0}\n'.format(ua), out=sys.stdout)
         return
 
     if print_extractor_information(opts, all_urls):
@@ -1060,7 +1066,7 @@ def _real_main(argv=None):
                 ):
                     rows.insert(0, [
                         ydl._format_out(text, ydl.Styles.SUPPRESS)
-                        for text in make_row(known_target, f'{known_handler} (unavailable)')
+                        for text in make_row(known_target, '{0} (unavailable)'.format(known_handler))
                     ])
 
             ydl.to_screen('[info] Available impersonate targets')
@@ -1117,16 +1123,19 @@ def main(argv=None):
     except (CookieLoadError, DownloadError):
         _exit(1)
     except SameFileError as e:
-        _exit(f'ERROR: {e}')
+        _exit('ERROR: {0}'.format(e))
     except KeyboardInterrupt:
         _exit('\nERROR: Interrupted by user')
-    except BrokenPipeError as e:
-        # https://docs.python.org/3/library/signal.html#note-on-sigpipe
-        devnull = os.open(os.devnull, os.O_WRONLY)
-        os.dup2(devnull, sys.stdout.fileno())
-        _exit(f'\nERROR: {e}')
+    except IOError as e:
+        if e.errno == 32:
+            # https://docs.python.org/3/library/signal.html#note-on-sigpipe
+            devnull = os.open(os.devnull, os.O_WRONLY)
+            os.dup2(devnull, sys.stdout.fileno())
+            _exit('\nERROR: {0}'.format(e))
+        else:
+            raise
     except optparse.OptParseError as e:
-        _exit(2, f'\n{e}')
+        _exit(2, '\n{0}'.format(e))
 
 
 from .extractor import gen_extractors, list_extractors

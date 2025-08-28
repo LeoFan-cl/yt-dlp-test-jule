@@ -1,233 +1,234 @@
-from __future__ import annotations
+from __future__ import with_statement
+from __future__ import absolute_import
 
 import contextlib
-import functools
 import os
 import socket
 import ssl
 import sys
-import typing
-import urllib.parse
-import urllib.request
+import urlparse
+import urllib
 
 from .exceptions import RequestError
 from ..dependencies import certifi
-from ..socks import ProxyType, sockssocket
+from ..utils import network_exceptions
+from ..compat import compat_os_name
 
-if typing.TYPE_CHECKING:
-    from collections.abc import Iterable
+if compat_os_name == 'nt':
+    from ..dependencies import socks
+    if socks:
+        from socks import (
+            sockssocket,
+            ProxyType,
+        )
+else:
+    socks = None
 
+if sys.version_info >= (3, 0):
+    from ..utils import HTTPHeaderDict
+else:
     from ..utils.networking import HTTPHeaderDict
 
 
-def ssl_load_certs(context: ssl.SSLContext, use_certifi=True):
+def ssl_load_certs(context, use_certifi=True):
     if certifi and use_certifi:
         context.load_verify_locations(cafile=certifi.where())
     else:
         try:
             context.load_default_certs()
-        # Work around the issue in load_default_certs when there are bad certificates. See:
-        # https://github.com/yt-dlp/yt-dlp/issues/1060,
-        # https://bugs.python.org/issue35665, https://bugs.python.org/issue45312
-        except ssl.SSLError:
-            # enum_certificates is not present in mingw python. See https://github.com/yt-dlp/yt-dlp/issues/1151
-            if sys.platform == 'win32' and hasattr(ssl, 'enum_certificates'):
-                for storename in ('CA', 'ROOT'):
+        except (IOError, OSError):
+            # See: https://github.com/yt-dlp/yt-dlp/issues/4893,
+            # https://bugs.python.org/issue35665, https://bugs.python.org/issue45312
+            if sys.platform == u'win32' and hasattr(ssl, u'enum_certificates'):
+                for storename in (u'CA', u'ROOT'):
                     ssl_load_windows_store_certs(context, storename)
             context.set_default_verify_paths()
 
 
-def ssl_load_windows_store_certs(ssl_context, storename):
+def ssl_load_windows_store_certs(context, storename):
     # Code adapted from _load_windows_store_certs in https://github.com/python/cpython/blob/main/Lib/ssl.py
     try:
         certs = [cert for cert, encoding, trust in ssl.enum_certificates(storename)
-                 if encoding == 'x509_asn' and (
+                 if encoding == u'x509_asn' and (
                      trust is True or ssl.Purpose.SERVER_AUTH.oid in trust)]
-    except PermissionError:
+    except (IOError, OSError):
         return
     for cert in certs:
-        with contextlib.suppress(ssl.SSLError):
-            ssl_context.load_verify_locations(cadata=cert)
+        context.load_verify_locations(cadata=cert)
 
 
 def make_socks_proxy_opts(socks_proxy):
-    url_components = urllib.parse.urlparse(socks_proxy)
-    if url_components.scheme.lower() == 'socks5':
+    url_components = urlparse.urlparse(socks_proxy)
+    if url_components.scheme.lower() == u'socks5':
         socks_type = ProxyType.SOCKS5
         rdns = False
-    elif url_components.scheme.lower() == 'socks5h':
+    elif url_components.scheme.lower() == u'socks5h':
         socks_type = ProxyType.SOCKS5
         rdns = True
-    elif url_components.scheme.lower() == 'socks4':
+    elif url_components.scheme.lower() == u'socks4':
         socks_type = ProxyType.SOCKS4
         rdns = False
-    elif url_components.scheme.lower() == 'socks4a':
+    elif url_components.scheme.lower() == u'socks4a':
         socks_type = ProxyType.SOCKS4A
         rdns = True
     else:
-        raise ValueError(f'Unknown SOCKS proxy version: {url_components.scheme.lower()}')
+        raise ValueError('Unsupported SOCKS proxy scheme: %s' % url_components.scheme)
 
     def unquote_if_non_empty(s):
         if not s:
             return s
-        return urllib.parse.unquote_plus(s)
+        return urllib.unquote_plus(s)
     return {
-        'proxytype': socks_type,
-        'addr': url_components.hostname,
-        'port': url_components.port or 1080,
-        'rdns': rdns,
-        'username': unquote_if_non_empty(url_components.username),
-        'password': unquote_if_non_empty(url_components.password),
+        u'proxytype': socks_type,
+        u'addr': url_components.hostname,
+        u'port': url_components.port or 1080,
+        u'rdns': rdns,
+        u'username': unquote_if_non_empty(url_components.username),
+        u'password': unquote_if_non_empty(url_components.password),
     }
 
 
 def get_redirect_method(method, status):
-    """Unified redirect method handling"""
+    u"""Unified redirect method handling"""
 
     # A 303 must either use GET or HEAD for subsequent request
     # https://datatracker.ietf.org/doc/html/rfc7231#section-6.4.4
-    if status == 303 and method != 'HEAD':
-        method = 'GET'
+    if status == 303 and method != u'HEAD':
+        method = u'GET'
     # 301 and 302 redirects are commonly turned into a GET from a POST
     # for subsequent requests by browsers, so we'll do the same.
     # https://datatracker.ietf.org/doc/html/rfc7231#section-6.4.2
     # https://datatracker.ietf.org/doc/html/rfc7231#section-6.4.3
-    if status in (301, 302) and method == 'POST':
-        method = 'GET'
+    if status in (301, 302) and method == u'POST':
+        method = u'GET'
     return method
 
 
-def make_ssl_context(
-    verify=True,
-    client_certificate=None,
-    client_certificate_key=None,
-    client_certificate_password=None,
-    legacy_support=False,
-    use_certifi=True,
-):
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+def create_ssl_context(
+        verify=True, use_certifi=True, legacy_support=False, client_certificate=None):
+    context = ssl.create_default_context()
     context.check_hostname = verify
     context.verify_mode = ssl.CERT_REQUIRED if verify else ssl.CERT_NONE
     # OpenSSL 1.1.1+ Python 3.8+ keylog file
-    if hasattr(context, 'keylog_filename'):
-        context.keylog_filename = os.environ.get('SSLKEYLOGFILE') or None
+    if hasattr(context, u'keylog_filename'):
+        context.keylog_filename = os.environ.get(u'SSLKEYLOGFILE') or None
 
     # Some servers may reject requests if ALPN extension is not sent. See:
     # https://github.com/python/cpython/issues/85140
     # https://github.com/yt-dlp/yt-dlp/issues/3878
-    with contextlib.suppress(NotImplementedError):
-        context.set_alpn_protocols(['http/1.1'])
+    try:
+        context.set_alpn_protocols([u'http/1.1'])
+    except NotImplementedError:
+        pass
     if verify:
         ssl_load_certs(context, use_certifi)
 
     if legacy_support:
         context.options |= 4  # SSL_OP_LEGACY_SERVER_CONNECT
-        context.set_ciphers('DEFAULT')  # compat
+        context.set_ciphers(u'DEFAULT')  # compat
 
-    elif ssl.OPENSSL_VERSION_INFO >= (1, 1, 1) and not ssl.OPENSSL_VERSION.startswith('LibreSSL'):
+    elif ssl.OPENSSL_VERSION_INFO >= (1, 1, 1) and not ssl.OPENSSL_VERSION.startswith(u'LibreSSL'):
         # Use the default SSL ciphers and minimum TLS version settings from Python 3.10 [1].
         # This is to ensure consistent behavior across Python versions and libraries, and help avoid fingerprinting
         # in some situations [2][3].
-        # Python 3.10 only supports OpenSSL 1.1.1+ [4]. Because this change is likely
-        # untested on older versions, we only apply this to OpenSSL 1.1.1+ to be safe.
-        # LibreSSL is excluded until further investigation due to cipher support issues [5][6].
-        # 1. https://github.com/python/cpython/commit/e983252b516edb15d4338b0a47631b59ef1e2536
-        # 2. https://github.com/yt-dlp/yt-dlp/issues/4627
-        # 3. https://github.com/yt-dlp/yt-dlp/pull/5294
-        # 4. https://peps.python.org/pep-0644/
+        # [1] https://github.com/python/cpython/blob/3.10/Lib/ssl.py#L143-L144
+        # [2] https://github.com/yt-dlp/yt-dlp/issues/772
+        # [3] https://github.com/yt-dlp/yt-dlp/issues/1400
+        # [4] https://github.com/yt-dlp/yt-dlp/issues/3354
         # 5. https://peps.python.org/pep-0644/#libressl-support
         # 6. https://github.com/yt-dlp/yt-dlp/commit/5b9f253fa0aee996cf1ed30185d4b502e00609c4#commitcomment-89054368
         context.set_ciphers(
-            '@SECLEVEL=2:ECDH+AESGCM:ECDH+CHACHA20:ECDH+AES:DHE+AES:!aNULL:!eNULL:!aDSS:!SHA1:!AESCCM')
+            u'@SECLEVEL=2:ECDH+AESGCM:ECDH+CHACHA20:ECDH+AES:DHE+AES:!aNULL:!eNULL:!aDSS:!SHA1:!AESCCM')
         context.minimum_version = ssl.TLSVersion.TLSv1_2
 
     if client_certificate:
+        client_certificate_key = client_certificate.get('client_certificate_key')
+        client_certificate_password = client_certificate.get('client_certificate_password')
         try:
             context.load_cert_chain(
-                client_certificate, keyfile=client_certificate_key,
+                client_certificate['client_certificate'], keyfile=client_certificate_key,
                 password=client_certificate_password)
         except ssl.SSLError:
-            raise RequestError('Unable to load client certificate')
+            raise RequestError(u'Unable to load client certificate')
 
-        if getattr(context, 'post_handshake_auth', None) is not None:
+        if getattr(context, u'post_handshake_auth', None) is not None:
             context.post_handshake_auth = True
     return context
 
 
-class InstanceStoreMixin:
+class InstanceStoreMixin(object):
     def __init__(self, **kwargs):
         self.__instances = []
-        super().__init__(**kwargs)  # So that both MRO works
+        super(InstanceStoreMixin, self).__init__(**kwargs)  # So that both MRO works
 
     @staticmethod
     def _create_instance(**kwargs):
         raise NotImplementedError
 
     def _get_instance(self, **kwargs):
-        for key, instance in self.__instances:
-            if key == kwargs:
-                return instance
-
-        instance = self._create_instance(**kwargs)
-        self.__instances.append((kwargs, instance))
-        return instance
+        # TODO: Allow multiple instances to be stored for different keys
+        if not self.__instances:
+            self.__instances.append(self._create_instance(**kwargs))
+        return self.__instances[0]
 
     def _close_instance(self, instance):
-        if callable(getattr(instance, 'close', None)):
+        if callable(getattr(instance, u'close', None)):
             instance.close()
 
     def _clear_instances(self):
-        for _, instance in self.__instances:
+        for instance in self.__instances:
             self._close_instance(instance)
-        self.__instances.clear()
+        del self.__instances[:]
 
 
-def add_accept_encoding_header(headers: HTTPHeaderDict, supported_encodings: Iterable[str]):
-    if 'Accept-Encoding' not in headers:
-        headers['Accept-Encoding'] = ', '.join(supported_encodings) or 'identity'
+def add_accept_encoding_header(headers, supported_encodings):
+    if u'Accept-Encoding' not in headers:
+        headers[u'Accept-Encoding'] = u', '.join(supported_encodings) or u'identity'
 
 
 def wrap_request_errors(func):
-    @functools.wraps(func)
+    """Wraps a request function to add the request handler to any Exception"""
+
     def wrapper(self, *args, **kwargs):
         try:
             return func(self, *args, **kwargs)
-        except RequestError as e:
+        except RequestError, e:
             if e.handler is None:
                 e.handler = self
             raise
+        except Exception, e:
+            raise RequestError(e, handler=self)
+
     return wrapper
 
 
-def _socket_connect(ip_addr, timeout, source_address):
-    af, socktype, proto, canonname, sa = ip_addr
+def _socket_connect(af, socktype, proto, sa, timeout, source_address):
     sock = socket.socket(af, socktype, proto)
     try:
         if timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
             sock.settimeout(timeout)
-        if source_address:
+        if source_address is not None:
             sock.bind(source_address)
         sock.connect(sa)
         return sock
-    except OSError:
+    except Exception:
         sock.close()
         raise
 
 
-def create_socks_proxy_socket(dest_addr, proxy_args, proxy_ip_addr, timeout, source_address):
-    af, socktype, proto, canonname, sa = proxy_ip_addr
+def _socks_connect(af, socktype, proto, sa, proxy_args, timeout, source_address):
     sock = sockssocket(af, socktype, proto)
     try:
         connect_proxy_args = proxy_args.copy()
-        connect_proxy_args.update({'addr': sa[0], 'port': sa[1]})
+        connect_proxy_args.update({u'addr': sa[0], u'port': sa[1]})
         sock.setproxy(**connect_proxy_args)
         if timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
             sock.settimeout(timeout)
-        if source_address:
+        if source_address is not None:
             sock.bind(source_address)
-        sock.connect(dest_addr)
+        sock.connect(sa)
         return sock
-    except OSError:
+    except Exception:
         sock.close()
         raise
 
@@ -236,38 +237,41 @@ def create_connection(
     address,
     timeout=socket._GLOBAL_DEFAULT_TIMEOUT,
     source_address=None,
-    *,
-    _create_socket_func=_socket_connect,
+    **_3to2kwargs
 ):
     # Work around socket.create_connection() which tries all addresses from getaddrinfo() including IPv6.
     # This filters the addresses based on the given source_address.
     # Based on: https://github.com/python/cpython/blob/main/Lib/socket.py#L810
+    if '_create_socket_func' in _3to2kwargs:
+        _create_socket_func = _3to2kwargs['_create_socket_func']
+        del _3to2kwargs['_create_socket_func']
+    else:
+        _create_socket_func = _socket_connect
     host, port = address
     ip_addrs = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM)
     if not ip_addrs:
-        raise OSError('getaddrinfo returns an empty list')
+        raise OSError(u'getaddrinfo returns an empty list')
     if source_address is not None:
-        af = socket.AF_INET if ':' not in source_address[0] else socket.AF_INET6
+        af = socket.AF_INET if u':' not in source_address[0] else socket.AF_INET6
         ip_addrs = [addr for addr in ip_addrs if addr[0] == af]
         if not ip_addrs:
             raise OSError(
-                f'No remote IPv{4 if af == socket.AF_INET else 6} addresses available for connect. '
-                f'Can\'t use "{source_address[0]}" as source address')
-
+                'no matching address family for %s:%s and source_address %s' % (
+                    host, port, source_address))
     err = None
-    for ip_addr in ip_addrs:
+    for res in ip_addrs:
+        af, socktype, proto, _, sa = res
+        sock = None
         try:
-            sock = _create_socket_func(ip_addr, timeout, source_address)
-            # Explicitly break __traceback__ reference cycle
-            # https://bugs.python.org/issue36820
+            sock = _create_socket_func(af, socktype, proto, sa, timeout, source_address)
+            # See: https://github.com/python/cpython/commit/3569623
+            #      https://bugs.python.org/issue36820
             err = None
             return sock
-        except OSError as e:
+        except OSError, e:
             err = e
 
     try:
         raise err
     finally:
-        # Explicitly break __traceback__ reference cycle
-        # https://bugs.python.org/issue36820
         err = None

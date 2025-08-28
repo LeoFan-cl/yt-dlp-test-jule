@@ -1,5 +1,7 @@
-from __future__ import annotations
+# coding: utf-8
+from __future__ import absolute_import, division, print_function, unicode_literals
 
+import calendar
 import datetime as dt
 import typing
 from threading import Lock
@@ -13,7 +15,7 @@ from yt_dlp.extractor.youtube.pot.cache import (
 )
 
 
-def initialize_global_cache(max_size: int):
+def initialize_global_cache(max_size):
     if _pot_memory_cache.value.get('cache') is None:
         _pot_memory_cache.value['cache'] = {}
         _pot_memory_cache.value['lock'] = Lock()
@@ -37,28 +39,28 @@ class MemoryLRUPCP(PoTokenCacheProvider, BuiltinIEContentProvider):
     def __init__(
         self,
         *args,
-        initialize_cache: typing.Callable[[int], tuple[dict[str, tuple[str, int]], Lock, int]] = initialize_global_cache,
-        **kwargs,
+        **kwargs
     ):
-        super().__init__(*args, **kwargs)
+        initialize_cache = kwargs.pop('initialize_cache', initialize_global_cache)
+        super(MemoryLRUPCP, self).__init__(*args, **kwargs)
         self.cache, self.lock, self.max_size = initialize_cache(self.DEFAULT_CACHE_SIZE)
 
-    def is_available(self) -> bool:
+    def is_available(self):
         return True
 
-    def get(self, key: str) -> str | None:
+    def get(self, key):
         with self.lock:
             if key not in self.cache:
                 return None
             value, expires_at = self.cache.pop(key)
-            if expires_at < int(dt.datetime.now(dt.timezone.utc).timestamp()):
+            if expires_at < calendar.timegm(dt.datetime.utcnow().utctimetuple()):
                 return None
             self.cache[key] = (value, expires_at)
             return value
 
-    def store(self, key: str, value: str, expires_at: int):
+    def store(self, key, value, expires_at):
         with self.lock:
-            if expires_at < int(dt.datetime.now(dt.timezone.utc).timestamp()):
+            if expires_at < calendar.timegm(dt.datetime.utcnow().utctimetuple()):
                 return
             if key in self.cache:
                 self.cache.pop(key)
@@ -67,7 +69,7 @@ class MemoryLRUPCP(PoTokenCacheProvider, BuiltinIEContentProvider):
                 oldest_key = next(iter(self.cache))
                 self.cache.pop(oldest_key)
 
-    def delete(self, key: str):
+    def delete(self, key):
         with self.lock:
             self.cache.pop(key, None)
 

@@ -1,8 +1,10 @@
-import urllib.parse
+# coding: utf-8
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from ._tab import YoutubeTabBaseInfoExtractor
 from ..common import SearchInfoExtractor
 from ...utils import join_nonempty, parse_qs
+from ...compat._legacy import compat_urllib_parse as urllib_parse
 
 
 class YoutubeSearchIE(YoutubeTabBaseInfoExtractor, SearchInfoExtractor):
@@ -159,7 +161,7 @@ class YoutubeMusicSearchURLIE(YoutubeTabBaseInfoExtractor):
         if params:
             section = next((k for k, v in self._SECTIONS.items() if v == params), params)
         else:
-            section = urllib.parse.unquote_plus(([*url.split('#'), ''])[1]).lower()
+            section = urllib_parse.unquote_plus((url.split('#') + [''])[1]).lower()
             params = self._SECTIONS.get(section)
             if not params:
                 section = None

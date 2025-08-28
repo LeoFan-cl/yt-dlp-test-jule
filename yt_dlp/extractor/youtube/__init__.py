@@ -1,4 +1,5 @@
 # flake8: noqa: F401
+from __future__ import absolute_import
 from ._base import YoutubeBaseInfoExtractor
 from ._clip import YoutubeClipIE
 from ._mistakes import YoutubeTruncatedIDIE, YoutubeTruncatedURLIE

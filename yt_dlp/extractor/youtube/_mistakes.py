@@ -1,3 +1,5 @@
+# coding: utf-8
+from __future__ import absolute_import, division, print_function, unicode_literals
 
 from ._base import YoutubeBaseInfoExtractor
 from ...utils import ExtractorError
@@ -65,5 +67,5 @@ class YoutubeTruncatedIDIE(YoutubeBaseInfoExtractor):
     def _real_extract(self, url):
         video_id = self._match_id(url)
         raise ExtractorError(
-            f'Incomplete YouTube ID {video_id}. URL {url} looks truncated.',
+            'Incomplete YouTube ID {0}. URL {1} looks truncated.'.format(video_id, url),
             expected=True)

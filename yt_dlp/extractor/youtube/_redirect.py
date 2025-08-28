@@ -1,14 +1,17 @@
+# coding: utf-8
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import base64
-import urllib.parse
 
 from ._base import YoutubeBaseInfoExtractor
 from ._tab import YoutubeTabIE
 from ...utils import ExtractorError, classproperty, parse_qs, update_url_query, url_or_none
+from ...compat._legacy import compat_urllib_parse as urllib_parse
 
 
 class YoutubeYtBeIE(YoutubeBaseInfoExtractor):
     IE_DESC = 'youtu.be'
-    _VALID_URL = rf'https?://youtu\.be/(?P<id>[0-9A-Za-z_-]{{11}})/*?.*?\blist=(?P<playlist_id>{YoutubeBaseInfoExtractor._PLAYLIST_ID_RE})'
+    _VALID_URL = r'https?://youtu\.be/(?P<id>[0-9A-Za-z_-]{11})/*?.*?\blist=(?P<playlist_id>{0})'.format(YoutubeBaseInfoExtractor._PLAYLIST_ID_RE)
     _TESTS = [{
         'url': 'https://youtu.be/yeWKywCrFtk?list=PL2qgrgXsNUG5ig9cat4ohreBjYLAPC0J5',
         'info_dict': {
@@ -69,7 +72,7 @@ class YoutubeLivestreamEmbedIE(YoutubeBaseInfoExtractor):
     def _real_extract(self, url):
         channel_id = self._match_id(url)
         return self.url_result(
-            f'https://www.youtube.com/channel/{channel_id}/live',
+            'https://www.youtube.com/channel/{0}/live'.format(channel_id),
             ie=YoutubeTabIE.ie_key(), video_id=channel_id)
 
 
@@ -84,7 +87,7 @@ class YoutubeYtUserIE(YoutubeBaseInfoExtractor):
 
     def _real_extract(self, url):
         user_id = self._match_id(url)
-        return self.url_result(f'https://www.youtube.com/user/{user_id}', YoutubeTabIE, user_id)
+        return self.url_result('https://www.youtube.com/user/{0}'.format(user_id), YoutubeTabIE, user_id)
 
 
 class YoutubeFavouritesIE(YoutubeBaseInfoExtractor):
@@ -116,11 +119,11 @@ class YoutubeFeedsInfoExtractor(YoutubeBaseInfoExtractor):
 
     @classproperty
     def IE_NAME(cls):
-        return f'youtube:{cls._FEED_NAME}'
+        return 'youtube:{0}'.format(cls._FEED_NAME)
 
     def _real_extract(self, url):
         return self.url_result(
-            f'https://www.youtube.com/feed/{self._FEED_NAME}', ie=YoutubeTabIE.ie_key())
+            'https://www.youtube.com/feed/{0}'.format(self._FEED_NAME), ie=YoutubeTabIE.ie_key())
 
 
 class YoutubeWatchLaterIE(YoutubeBaseInfoExtractor):
@@ -192,12 +195,12 @@ class YoutubeShortsAudioPivotIE(YoutubeBaseInfoExtractor):
         Generates sfv_audio_pivot browse params for this video id
         """
         pb_params = b'\xf2\x05+\n)\x12\'\n\x0b%b\x12\x0b%b\x1a\x0b%b' % ((video_id.encode(),) * 3)
-        return urllib.parse.quote(base64.b64encode(pb_params).decode())
+        return urllib_parse.quote(base64.b64encode(pb_params).decode())
 
     def _real_extract(self, url):
         video_id = self._match_id(url)
         return self.url_result(
-            f'https://www.youtube.com/feed/sfv_audio_pivot?bp={self._generate_audio_pivot_params(video_id)}',
+            'https://www.youtube.com/feed/sfv_audio_pivot?bp={0}'.format(self._generate_audio_pivot_params(video_id)),
             ie=YoutubeTabIE)
 
 

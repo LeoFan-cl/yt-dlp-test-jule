@@ -1,5 +1,8 @@
+from __future__ import division, print_function, absolute_import, unicode_literals
 import base64
 from math import ceil
+import struct
+from itertools import imap, izip
 
 from .compat import compat_ord
 from .dependencies import Cryptodome
@@ -16,15 +19,15 @@ if Cryptodome.AES:
 else:
     def aes_cbc_decrypt_bytes(data, key, iv):
         """ Decrypt bytes with AES-CBC using native implementation since pycryptodome is unavailable """
-        return bytes(aes_cbc_decrypt(*map(list, (data, key, iv))))
+        return b''.join(imap(chr, aes_cbc_decrypt(*imap(list, (data, key, iv)))))
 
     def aes_gcm_decrypt_and_verify_bytes(data, key, tag, nonce):
         """ Decrypt bytes with AES-GCM using native implementation since pycryptodome is unavailable """
-        return bytes(aes_gcm_decrypt_and_verify(*map(list, (data, key, tag, nonce))))
+        return b''.join(imap(chr, aes_gcm_decrypt_and_verify(*imap(list, (data, key, tag, nonce)))))
 
 
 def aes_cbc_encrypt_bytes(data, key, iv, **kwargs):
-    return bytes(aes_cbc_encrypt(*map(list, (data, key, iv)), **kwargs))
+    return b''.join(imap(chr, aes_cbc_encrypt(*imap(list, (data, key, iv)), **kwargs)))
 
 
 BLOCK_SIZE_BYTES = 16
@@ -64,10 +67,10 @@ def pad_block(block, padding_mode):
     if padding_size < 0:
         raise ValueError('Block size exceeded')
     elif padding_mode not in PADDING_BYTE:
-        raise NotImplementedError(f'Padding mode {padding_mode} is not implemented')
+        raise NotImplementedError('Padding mode {0} is not implemented'.format(padding_mode))
 
     if padding_mode == 'iso7816' and padding_size:
-        block = [*block, 0x80]  # NB: += mutates list
+        block = block + [0x80]  # NB: += mutates list
         padding_size -= 1
 
     return block + [PADDING_BYTE[padding_mode]] * padding_size
@@ -83,10 +86,10 @@ def aes_ecb_encrypt(data, key, iv=None):
     @returns {int[]}           encrypted data
     """
     expanded_key = key_expansion(key)
-    block_count = ceil(len(data) / BLOCK_SIZE_BYTES)
+    block_count = int(ceil(len(data) / BLOCK_SIZE_BYTES))
 
     encrypted_data = []
-    for i in range(block_count):
+    for i in xrange(block_count):
         block = data[i * BLOCK_SIZE_BYTES: (i + 1) * BLOCK_SIZE_BYTES]
         encrypted_data += aes_encrypt(pkcs7_padding(block), expanded_key)
 
@@ -103,10 +106,10 @@ def aes_ecb_decrypt(data, key, iv=None):
     @returns {int[]}           decrypted data
     """
     expanded_key = key_expansion(key)
-    block_count = ceil(len(data) / BLOCK_SIZE_BYTES)
+    block_count = int(ceil(len(data) / BLOCK_SIZE_BYTES))
 
     encrypted_data = []
-    for i in range(block_count):
+    for i in xrange(block_count):
         block = data[i * BLOCK_SIZE_BYTES: (i + 1) * BLOCK_SIZE_BYTES]
         encrypted_data += aes_decrypt(block, expanded_key)
     return encrypted_data[:len(data)]
@@ -134,11 +137,11 @@ def aes_ctr_encrypt(data, key, iv):
     @returns {int[]}           encrypted data
     """
     expanded_key = key_expansion(key)
-    block_count = ceil(len(data) / BLOCK_SIZE_BYTES)
+    block_count = int(ceil(len(data) / BLOCK_SIZE_BYTES))
     counter = iter_vector(iv)
 
     encrypted_data = []
-    for i in range(block_count):
+    for i in xrange(block_count):
         counter_block = next(counter)
         block = data[i * BLOCK_SIZE_BYTES: (i + 1) * BLOCK_SIZE_BYTES]
         block += [0] * (BLOCK_SIZE_BYTES - len(block))
@@ -158,11 +161,11 @@ def aes_cbc_decrypt(data, key, iv):
     @returns {int[]}           decrypted data
     """
     expanded_key = key_expansion(key)
-    block_count = ceil(len(data) / BLOCK_SIZE_BYTES)
+    block_count = int(ceil(len(data) / BLOCK_SIZE_BYTES))
 
     decrypted_data = []
     previous_cipher_block = iv
-    for i in range(block_count):
+    for i in xrange(block_count):
         block = data[i * BLOCK_SIZE_BYTES: (i + 1) * BLOCK_SIZE_BYTES]
         block += [0] * (BLOCK_SIZE_BYTES - len(block))
 
@@ -172,7 +175,7 @@ def aes_cbc_decrypt(data, key, iv):
     return decrypted_data[:len(data)]
 
 
-def aes_cbc_encrypt(data, key, iv, *, padding_mode='pkcs7'):
+def aes_cbc_encrypt(data, key, iv, **kwargs):
     """
     Encrypt with aes in CBC mode
 
@@ -182,12 +185,13 @@ def aes_cbc_encrypt(data, key, iv, *, padding_mode='pkcs7'):
     @param padding_mode        Padding mode to use
     @returns {int[]}           encrypted data
     """
+    padding_mode = kwargs.pop('padding_mode', 'pkcs7')
     expanded_key = key_expansion(key)
-    block_count = ceil(len(data) / BLOCK_SIZE_BYTES)
+    block_count = int(ceil(len(data) / BLOCK_SIZE_BYTES))
 
     encrypted_data = []
     previous_cipher_block = iv
-    for i in range(block_count):
+    for i in xrange(block_count):
         block = data[i * BLOCK_SIZE_BYTES: (i + 1) * BLOCK_SIZE_BYTES]
         block = pad_block(block, padding_mode)
 
@@ -217,10 +221,10 @@ def aes_gcm_decrypt_and_verify(data, key, tag, nonce):
     hash_subkey = aes_encrypt([0] * BLOCK_SIZE_BYTES, key_expansion(key))
 
     if len(nonce) == 12:
-        j0 = [*nonce, 0, 0, 0, 1]
+        j0 = nonce + [0, 0, 0, 1]
     else:
         fill = (BLOCK_SIZE_BYTES - (len(nonce) % BLOCK_SIZE_BYTES)) % BLOCK_SIZE_BYTES + 8
-        ghash_in = nonce + [0] * fill + list((8 * len(nonce)).to_bytes(8, 'big'))
+        ghash_in = nonce + [0] * fill + list(bytearray(struct.pack(b'>Q', 8 * len(nonce))))
         j0 = ghash(hash_subkey, ghash_in)
 
     # TODO: add nonce support to aes_ctr_decrypt
@@ -234,8 +238,8 @@ def aes_gcm_decrypt_and_verify(data, key, tag, nonce):
         hash_subkey,
         data
         + [0] * pad_len                                  # pad
-        + list((0 * 8).to_bytes(8, 'big')                # length of associated data
-               + ((len(data) * 8).to_bytes(8, 'big'))),  # length of data
+        + list(bytearray(struct.pack(b'>Q', 0)))      # length of associated data
+        + list(bytearray(struct.pack(b'>Q', len(data) * 8))),  # length of data
     )
 
     if tag != aes_ctr_encrypt(s_tag, key, j0):
@@ -255,7 +259,7 @@ def aes_encrypt(data, expanded_key):
     rounds = len(expanded_key) // BLOCK_SIZE_BYTES - 1
 
     data = xor(data, expanded_key[:BLOCK_SIZE_BYTES])
-    for i in range(1, rounds + 1):
+    for i in xrange(1, rounds + 1):
         data = sub_bytes(data)
         data = shift_rows(data)
         if i != rounds:
@@ -275,7 +279,7 @@ def aes_decrypt(data, expanded_key):
     """
     rounds = len(expanded_key) // BLOCK_SIZE_BYTES - 1
 
-    for i in range(rounds, 0, -1):
+    for i in xrange(rounds, 0, -1):
         data = xor(data, expanded_key[i * BLOCK_SIZE_BYTES: (i + 1) * BLOCK_SIZE_BYTES])
         if i != rounds:
             data = list(iter_mix_columns(data, MIX_COLUMN_MATRIX_INV))
@@ -309,7 +313,7 @@ def aes_decrypt_text(data, password, key_size_bytes):
     cipher = data[NONCE_LENGTH_BYTES:]
 
     decrypted_data = aes_ctr_decrypt(cipher, key, nonce + [0] * (BLOCK_SIZE_BYTES - NONCE_LENGTH_BYTES))
-    return bytes(decrypted_data)
+    return b''.join(imap(chr, decrypted_data))
 
 
 RCON = (0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36)
@@ -405,7 +409,7 @@ def key_expansion(data):
         rcon_iteration += 1
         data += xor(temp, data[-key_size_bytes: 4 - key_size_bytes])
 
-        for _ in range(3):
+        for _ in xrange(3):
             temp = data[-4:]
             data += xor(temp, data[-key_size_bytes: 4 - key_size_bytes])
 
@@ -414,7 +418,7 @@ def key_expansion(data):
             temp = sub_bytes(temp)
             data += xor(temp, data[-key_size_bytes: 4 - key_size_bytes])
 
-        for _ in range(3 if key_size_bytes == 32 else 2 if key_size_bytes == 24 else 0):
+        for _ in xrange(3 if key_size_bytes == 32 else 2 if key_size_bytes == 24 else 0):
             temp = data[-4:]
             data += xor(temp, data[-key_size_bytes: 4 - key_size_bytes])
     return data[:expanded_key_size_bytes]
@@ -447,14 +451,14 @@ def key_schedule_core(data, rcon_iteration):
 
 
 def xor(data1, data2):
-    return [x ^ y for x, y in zip(data1, data2)]
+    return [x ^ y for x, y in izip(data1, data2)]
 
 
 def iter_mix_columns(data, matrix):
     for i in (0, 4, 8, 12):
         for row in matrix:
             mixed = 0
-            for j in range(4):
+            for j in xrange(4):
                 # xor is (+) and (-)
                 mixed ^= (0 if data[i:i + 4][j] == 0 or row[j] == 0 else
                           RIJNDAEL_EXP_TABLE[(RIJNDAEL_LOG_TABLE[data[i + j]] + RIJNDAEL_LOG_TABLE[row[j]]) % 0xFF])
@@ -462,11 +466,11 @@ def iter_mix_columns(data, matrix):
 
 
 def shift_rows(data):
-    return [data[((column + row) & 0b11) * 4 + row] for column in range(4) for row in range(4)]
+    return [data[((column + row) & 3) * 4 + row] for column in xrange(4) for row in xrange(4)]
 
 
 def shift_rows_inv(data):
-    return [data[((column - row) & 0b11) * 4 + row] for column in range(4) for row in range(4)]
+    return [data[((column - row) & 3) * 4 + row] for column in xrange(4) for row in xrange(4)]
 
 
 def shift_block(data):
@@ -485,7 +489,7 @@ def shift_block(data):
 
 def inc(data):
     data = data[:]  # copy
-    for i in range(len(data) - 1, -1, -1):
+    for i in xrange(len(data) - 1, -1, -1):
         if data[i] == 255:
             data[i] = 0
         else:
@@ -498,14 +502,14 @@ def block_product(block_x, block_y):
     # NIST SP 800-38D, Algorithm 1
 
     if len(block_x) != BLOCK_SIZE_BYTES or len(block_y) != BLOCK_SIZE_BYTES:
-        raise ValueError(f'Length of blocks need to be {BLOCK_SIZE_BYTES} bytes')
+        raise ValueError('Length of blocks need to be {0} bytes'.format(BLOCK_SIZE_BYTES))
 
     block_r = [0xE1] + [0] * (BLOCK_SIZE_BYTES - 1)
     block_v = block_y[:]
     block_z = [0] * BLOCK_SIZE_BYTES
 
     for i in block_x:
-        for bit in range(7, -1, -1):
+        for bit in xrange(7, -1, -1):
             if i & (1 << bit):
                 block_z = xor(block_z, block_v)
 
@@ -521,10 +525,10 @@ def ghash(subkey, data):
     # NIST SP 800-38D, Algorithm 2
 
     if len(data) % BLOCK_SIZE_BYTES:
-        raise ValueError(f'Length of data should be {BLOCK_SIZE_BYTES} bytes')
+        raise ValueError('Length of data should be {0} bytes'.format(BLOCK_SIZE_BYTES))
 
     last_y = [0] * BLOCK_SIZE_BYTES
-    for i in range(0, len(data), BLOCK_SIZE_BYTES):
+    for i in xrange(0, len(data), BLOCK_SIZE_BYTES):
         block = data[i: i + BLOCK_SIZE_BYTES]
         last_y = block_product(xor(last_y, block), subkey)
 

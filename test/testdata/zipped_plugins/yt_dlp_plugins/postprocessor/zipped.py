@@ -1,5 +1,7 @@
-from yt_dlp.postprocessor.common import PostProcessor
-
-
-class ZippedPluginPP(PostProcessor):
-    pass
+b'--- ./test/testdata/zipped_plugins/yt_dlp_plugins/postprocessor/zipped.py\t(original)'
+b'+++ ./test/testdata/zipped_plugins/yt_dlp_plugins/postprocessor/zipped.py\t(refactored)'
+b'@@ -1,3 +1,4 @@'
+b'+from __future__ import absolute_import'
+b' from yt_dlp.postprocessor.common import PostProcessor'
+b' '
+b' '

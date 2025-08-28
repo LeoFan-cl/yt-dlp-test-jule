@@ -1,3 +1,6 @@
+# coding: utf-8
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import itertools
 import re
 
@@ -37,7 +40,7 @@ class YoutubeNotificationsIE(YoutubeTabBaseInfoExtractor):
     def _extract_notification_renderer(self, notification):
         video_id = traverse_obj(
             notification, ('navigationEndpoint', 'watchEndpoint', 'videoId'), expected_type=str)
-        url = f'https://www.youtube.com/watch?v={video_id}'
+        url = 'https://www.youtube.com/watch?v={0}'.format(video_id)
         channel_id = None
         if not video_id:
             browse_ep = traverse_obj(
@@ -49,7 +52,7 @@ class YoutubeNotificationsIE(YoutubeTabBaseInfoExtractor):
             if not channel_id or not post_id:
                 return
             # The direct /post url redirects to this in the browser
-            url = f'https://www.youtube.com/channel/{channel_id}/community?lb={post_id}'
+            url = 'https://www.youtube.com/channel/{0}/community?lb={1}'.format(channel_id, post_id)
 
         channel = traverse_obj(
             notification, ('contextualMenu', 'menuRenderer', 'items', 1, 'menuServiceItemRenderer', 'text', 'runs', 1, 'text'),
@@ -59,7 +62,7 @@ class YoutubeNotificationsIE(YoutubeTabBaseInfoExtractor):
             notification_title = notification_title.replace('\xad', '')  # remove soft hyphens
         # TODO: handle recommended videos
         title = self._search_regex(
-            rf'{re.escape(channel or "")}[^:]+: (.+)', notification_title,
+            r'{0}[^:]+: (.+)'.format(re.escape(channel or "")), notification_title,
             'video title', default=None)
         timestamp = (self._parse_time_text(self._get_text(notification, 'sentTimeText'))
                      if self._configuration_arg('approximate_date', ie_key=YoutubeTabIE)
@@ -84,10 +87,11 @@ class YoutubeNotificationsIE(YoutubeTabBaseInfoExtractor):
             ctoken = traverse_obj(
                 continuation_list, (0, 'continuationEndpoint', 'getNotificationMenuEndpoint', 'ctoken'), expected_type=str)
             response = self._extract_response(
-                item_id=f'page {page}', query={'ctoken': ctoken} if ctoken else {}, ytcfg=ytcfg,
+                item_id='page {0}'.format(page), query={'ctoken': ctoken} if ctoken else {}, ytcfg=ytcfg,
                 ep='notification/get_notification_menu', check_get_keys='actions',
                 headers=self.generate_api_headers(ytcfg=ytcfg, visitor_data=self._extract_visitor_data(response)))
-            yield from self._extract_notification_menu(response, continuation_list)
+            for item in self._extract_notification_menu(response, continuation_list):
+                yield item
             if not continuation_list[0]:
                 break
 

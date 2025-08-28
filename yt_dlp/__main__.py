@@ -1,8 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # Execute with
-# $ python3 -m yt_dlp
+# $ python -m yt_dlp
 
+from __future__ import absolute_import, unicode_literals
 import sys
 
 if __package__ is None and not getattr(sys, 'frozen', False):
@@ -15,6 +16,7 @@ import yt_dlp
 
 if __name__ == '__main__':
     from pprint import pprint
+    from itertools import imap
 
     _TEST_URL = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
     argv = [
@@ -27,7 +29,7 @@ if __name__ == '__main__':
         # "-f",
         # "18"
     ]
-    
+
     yt_dlp.main(argv)
 
     """
@@ -44,7 +46,7 @@ if __name__ == '__main__':
 
 
     formats = resultDict.get('formats')
-    format_ids = map(lambda f: f.get('format_id'), formats)
+    format_ids = imap(lambda f: f.get('format_id'), formats)
     # pprint(format_ids)
 
     tags = ['18']

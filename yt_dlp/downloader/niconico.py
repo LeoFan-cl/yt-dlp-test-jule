@@ -1,3 +1,5 @@
+from __future__ import with_statement
+from __future__ import absolute_import
 import json
 import threading
 import time
@@ -11,40 +13,40 @@ from ..utils.traversal import traverse_obj
 
 
 class NiconicoLiveFD(FileDownloader):
-    """ Downloads niconico live without being stopped """
+    u""" Downloads niconico live without being stopped """
 
     def real_download(self, filename, info_dict):
-        video_id = info_dict['id']
-        opts = info_dict['downloader_options']
-        quality, ws_extractor, ws_url = opts['max_quality'], opts['ws'], opts['ws_url']
+        video_id = info_dict[u'id']
+        opts = info_dict[u'downloader_options']
+        quality, ws_extractor, ws_url = opts[u'max_quality'], opts[u'ws'], opts[u'ws_url']
         dl = FFmpegFD(self.ydl, self.params or {})
 
         new_info_dict = info_dict.copy()
-        new_info_dict['protocol'] = 'm3u8'
+        new_info_dict[u'protocol'] = u'm3u8'
 
         def communicate_ws(reconnect):
             # Support --load-info-json as if it is a reconnect attempt
             if reconnect or not isinstance(ws_extractor, WebSocketResponse):
                 ws = self.ydl.urlopen(Request(
-                    ws_url, headers={'Origin': 'https://live.nicovideo.jp'}))
-                if self.ydl.params.get('verbose', False):
-                    self.write_debug('Sending startWatching request')
+                    ws_url, headers={u'Origin': u'https://live.nicovideo.jp'}))
+                if self.ydl.params.get(u'verbose', False):
+                    self.write_debug(u'Sending startWatching request')
                 ws.send(json.dumps({
-                    'data': {
-                        'reconnect': True,
-                        'room': {
-                            'commentable': True,
-                            'protocol': 'webSocket',
+                    u'data': {
+                        u'reconnect': True,
+                        u'room': {
+                            u'commentable': True,
+                            u'protocol': u'webSocket',
                         },
-                        'stream': {
-                            'accessRightMethod': 'single_cookie',
-                            'chasePlay': False,
-                            'latency': 'high',
-                            'protocol': 'hls',
-                            'quality': quality,
+                        u'stream': {
+                            u'accessRightMethod': u'single_cookie',
+                            u'chasePlay': False,
+                            u'latency': u'high',
+                            u'protocol': u'hls',
+                            u'quality': quality,
                         },
                     },
-                    'type': 'startWatching',
+                    u'type': u'startWatching',
                 }))
             else:
                 ws = ws_extractor
@@ -56,17 +58,17 @@ class NiconicoLiveFD(FileDownloader):
                     data = json.loads(recv)
                     if not data or not isinstance(data, dict):
                         continue
-                    if data.get('type') == 'ping':
-                        ws.send(r'{"type":"pong"}')
-                        ws.send(r'{"type":"keepSeat"}')
-                    elif data.get('type') == 'disconnect':
+                    if data.get(u'type') == u'ping':
+                        ws.send(ur'{"type":"pong"}')
+                        ws.send(ur'{"type":"keepSeat"}')
+                    elif data.get(u'type') == u'disconnect':
                         self.write_debug(data)
                         return True
-                    elif data.get('type') == 'error':
+                    elif data.get(u'type') == u'error':
                         self.write_debug(data)
-                        message = traverse_obj(data, ('body', 'code', {str_or_none}), default=recv)
+                        message = traverse_obj(data, (u'body', u'code', set([str_or_none])), default=recv)
                         return DownloadError(message)
-                    elif self.ydl.params.get('verbose', False):
+                    elif self.ydl.params.get(u'verbose', False):
                         self.write_debug(f'Server response: {truncate_string(recv, 100)}')
 
         def ws_main():
@@ -76,7 +78,7 @@ class NiconicoLiveFD(FileDownloader):
                     ret = communicate_ws(reconnect)
                     if ret is True:
                         return
-                except BaseException as e:
+                except BaseException, e:
                     self.to_screen(
                         f'[niconico:live] {video_id}: Connection error occured, reconnecting after 10 seconds: {e}')
                     time.sleep(10)

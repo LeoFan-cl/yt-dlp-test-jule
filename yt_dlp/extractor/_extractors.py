@@ -1,6 +1,8 @@
 # flake8: noqa: F401
 # isort: off
 
+from __future__ import absolute_import
+
 from .youtube import (  # Youtube is moved to the top to improve performance
     YoutubeIE,
     YoutubeClipIE,

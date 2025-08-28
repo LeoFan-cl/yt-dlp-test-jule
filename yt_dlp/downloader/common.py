@@ -1,3 +1,6 @@
+# coding: utf-8
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import contextlib
 import errno
 import functools
@@ -33,8 +36,23 @@ from ..utils import (
 )
 from ..utils._utils import _ProgressState
 
+try:
+    from functools import partialmethod
+except ImportError:
+    # Python 2.7 compatibility
+    class partialmethod(object):
+        def __init__(self, func, *args, **keywords):
+            self.func = func
+            self.args = args
+            self.keywords = keywords
 
-class FileDownloader:
+        def __get__(self, instance, owner):
+            if instance is None:
+                return self
+            return functools.partial(self.func, instance, *self.args, **self.keywords)
+
+
+class FileDownloader(object):
     """File Downloader class.
 
     File downloader objects are the ones responsible of downloading the
@@ -91,7 +109,7 @@ class FileDownloader:
         self.add_progress_hook(self.report_progress)
         if self.params.get('progress_delta'):
             self._progress_delta_lock = threading.Lock()
-            self._progress_delta_time = time.monotonic()
+            self._progress_delta_time = time.time()
 
     def _set_ydl(self, ydl):
         self.ydl = ydl
@@ -130,7 +148,7 @@ class FileDownloader:
 
     @classmethod
     def format_eta(cls, seconds):
-        return f'{remove_start(cls.format_seconds(seconds), "00:"):>8s}'
+        return '{0:>8s}'.format(remove_start(cls.format_seconds(seconds), "00:"))
 
     @staticmethod
     def calc_percent(byte_counter, data_len):
@@ -140,7 +158,7 @@ class FileDownloader:
 
     @staticmethod
     def format_percent(percent):
-        return '  N/A%' if percent is None else f'{percent:>5.1f}%'
+        return '  N/A%' if percent is None else '{0:>5.1f}%'.format(percent)
 
     @classmethod
     def calc_eta(cls, start_or_rate, now_or_remaining, total=NO_DEFAULT, current=NO_DEFAULT):
@@ -159,15 +177,15 @@ class FileDownloader:
         return rate and int((float(total) - float(current)) / rate)
 
     @staticmethod
-    def calc_speed(start, now, bytes):
+    def calc_speed(start, now, bytes_in_chunk):
         dif = now - start
-        if bytes == 0 or dif < 0.001:  # One millisecond
+        if bytes_in_chunk == 0 or dif < 0.001:  # One millisecond
             return None
-        return float(bytes) / dif
+        return float(bytes_in_chunk) / dif
 
     @staticmethod
     def format_speed(speed):
-        return ' Unknown B/s' if speed is None else f'{format_bytes(speed):>10s}/s'
+        return ' Unknown B/s' if speed is None else '{0:>10s}/s'.format(format_bytes(speed))
 
     @staticmethod
     def format_retries(retries):
@@ -180,12 +198,12 @@ class FileDownloader:
         return 0
 
     @staticmethod
-    def best_block_size(elapsed_time, bytes):
-        new_min = max(bytes / 2.0, 1.0)
-        new_max = min(max(bytes * 2.0, 1.0), 4194304)  # Do not surpass 4 MB
+    def best_block_size(elapsed_time, bytes_in_chunk):
+        new_min = max(bytes_in_chunk / 2.0, 1.0)
+        new_max = min(max(bytes_in_chunk * 2.0, 1.0), 4194304)  # Do not surpass 4 MB
         if elapsed_time < 0.001:
             return int(new_max)
-        rate = bytes / elapsed_time
+        rate = bytes_in_chunk / elapsed_time
         if rate > new_max:
             return int(new_max)
         if rate < new_min:
@@ -230,31 +248,37 @@ class FileDownloader:
     def ytdl_filename(self, filename):
         return filename + '.ytdl'
 
-    def wrap_file_access(action, *, fatal=False):
-        def error_callback(err, count, retries, *, fd):
+    @staticmethod
+    def wrap_file_access(action, **kwargs):
+        fatal = kwargs.pop('fatal', False)
+        if kwargs:
+            raise TypeError('wrap_file_access() got an unexpected keyword argument "{0}"'.format(list(kwargs.keys())[0]))
+
+        def error_callback(err, count, retries, **kwargs_cb):
+            fd = kwargs_cb['fd']
             return RetryManager.report_retry(
-                err, count, retries, info=fd.__to_screen,
-                warn=lambda e: (time.sleep(0.01), fd.to_screen(f'[download] Unable to {action} file: {e}')),
-                error=None if fatal else lambda e: fd.report_error(f'Unable to {action} file: {e}'),
+                err, count, retries, info=fd._FileDownloader__to_screen,
+                warn=lambda e: (time.sleep(0.01), fd.to_screen('[download] Unable to {0} file: {1}'.format(action, e))),
+                error=None if fatal else lambda e: fd.report_error('Unable to {0} file: {1}'.format(action, e)),
                 sleep_func=fd.params.get('retry_sleep_functions', {}).get('file_access'))
 
-        def wrapper(self, func, *args, **kwargs):
+        def wrapper(self, func, *args, **kwargs_wrap):
             for retry in RetryManager(self.params.get('file_access_retries', 3), error_callback, fd=self):
                 try:
-                    return func(self, *args, **kwargs)
+                    return func(self, *args, **kwargs_wrap)
                 except OSError as err:
                     if err.errno in (errno.EACCES, errno.EINVAL):
                         retry.error = err
                         continue
                     retry.error_callback(err, 1, 0)
 
-        return functools.partial(functools.partialmethod, wrapper)
+        return functools.partial(partialmethod, wrapper)
 
     @wrap_file_access('open', fatal=True)
     def sanitize_open(self, filename, open_mode):
         f, filename = sanitize_open(filename, open_mode)
         if not getattr(f, 'locked', None):
-            self.write_debug(f'{LockingUnsupportedError.msg}. Proceeding without locking', only_once=True)
+            self.write_debug('{0}. Proceeding without locking'.format(LockingUnsupportedError.msg), only_once=True)
         return f, filename
 
     @wrap_file_access('remove')
@@ -317,8 +341,8 @@ class FileDownloader:
     )
 
     def _report_progress_status(self, s, default_template):
-        for name, style in self.ProgressStyles.items_:
-            name = f'_{name}_str'
+        for name, style in self.ProgressStyles.items_():
+            name = '_{0}_str'.format(name)
             if name not in s:
                 continue
             s[name] = self._format_progress(s[name], style)
@@ -341,13 +365,16 @@ class FileDownloader:
             self._multiline.stream, self._multiline.allow_colors, *args, **kwargs)
 
     def report_progress(self, s):
-        def with_fields(*tups, default=''):
-            for *fields, tmpl in tups:
+        def with_fields(*tups, **kwargs):
+            default = kwargs.get('default', '')
+            for fields_tuple in tups:
+                fields = fields_tuple[:-1]
+                tmpl = fields_tuple[-1]
                 if all(s.get(f) is not None for f in fields):
                     return tmpl
             return default
 
-        _format_bytes = lambda k: f'{format_bytes(s.get(k)):>10s}'
+        _format_bytes = lambda k: '{0:>10s}'.format(format_bytes(s.get(k)))
 
         if s['status'] == 'finished':
             if self.params.get('noprogress'):
@@ -371,9 +398,10 @@ class FileDownloader:
         if s['status'] != 'downloading':
             return
 
-        if update_delta := self.params.get('progress_delta'):
+        if self.params.get('progress_delta'):
+            update_delta = self.params.get('progress_delta')
             with self._progress_delta_lock:
-                if time.monotonic() < self._progress_delta_time:
+                if time.time() < self._progress_delta_time:
                     return
                 self._progress_delta_time += update_delta
 
@@ -406,17 +434,18 @@ class FileDownloader:
 
     def report_resuming_byte(self, resume_len):
         """Report attempt to resume at given byte."""
-        self.to_screen(f'[download] Resuming download at byte {resume_len}')
+        self.to_screen('[download] Resuming download at byte {0}'.format(resume_len))
 
     def report_retry(self, err, count, retries, frag_index=NO_DEFAULT, fatal=True):
         """Report retry"""
         is_frag = False if frag_index is NO_DEFAULT else 'fragment'
+        suffix = 'fragment{0}'.format('s' if frag_index is None else ' {0}'.format(frag_index)) if is_frag else None
         RetryManager.report_retry(
-            err, count, retries, info=self.__to_screen,
-            warn=lambda msg: self.__to_screen(f'[download] Got error: {msg}'),
-            error=IDENTITY if not fatal else lambda e: self.report_error(f'\r[download] Got error: {e}'),
+            err, count, retries, info=self._FileDownloader__to_screen,
+            warn=lambda msg: self._FileDownloader__to_screen('[download] Got error: {0}'.format(msg)),
+            error=IDENTITY if not fatal else lambda e: self.report_error('\r[download] Got error: {0}'.format(e)),
             sleep_func=self.params.get('retry_sleep_functions', {}).get(is_frag or 'http'),
-            suffix=f'fragment{"s" if frag_index is None else f" {frag_index}"}' if is_frag else None)
+            suffix=suffix)
 
     def report_unable_to_resume(self):
         """Report it was impossible to resume download."""
@@ -462,7 +491,8 @@ class FileDownloader:
             min_sleep_interval = self.params.get('sleep_interval') or 0
             max_sleep_interval = self.params.get('max_sleep_interval') or 0
 
-            if available_at := info_dict.get('available_at'):
+            if info_dict.get('available_at'):
+                available_at = info_dict.get('available_at')
                 forced_sleep_interval = available_at - int(time.time())
                 if forced_sleep_interval > min_sleep_interval:
                     sleep_note = 'as required by the site'
@@ -474,7 +504,7 @@ class FileDownloader:
                 min_sleep_interval, max_sleep_interval or min_sleep_interval)
 
         if sleep_interval > 0:
-            self.to_screen(f'[download] Sleeping {sleep_interval:.2f} seconds {sleep_note}...')
+            self.to_screen('[download] Sleeping {0:.2f} seconds {1}...'.format(sleep_interval, sleep_note))
             time.sleep(sleep_interval)
 
         ret = self.real_download(filename, info_dict)
@@ -506,7 +536,7 @@ class FileDownloader:
         if exe is None:
             exe = os.path.basename(args[0])
 
-        self.write_debug(f'{exe} command line: {shell_quote(args)}')
+        self.write_debug('{0} command line: {1}'.format(exe, shell_quote(args)))
 
     def _get_impersonate_target(self, info_dict):
         impersonate = info_dict.get('impersonate')

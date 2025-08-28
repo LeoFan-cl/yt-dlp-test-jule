@@ -1,4 +1,5 @@
 # flake8: noqa: F405
+from __future__ import absolute_import
 from shutil import *  # noqa: F403
 
 from .compat_utils import passthrough_module
@@ -14,17 +15,16 @@ if sys.platform.startswith('freebsd'):
     import os
     import shutil
 
-    # Workaround for PermissionError when using restricted ACL mode on FreeBSD
     def copy2(src, dst, *args, **kwargs):
-        if os.path.isdir(dst):
-            dst = os.path.join(dst, os.path.basename(src))
         shutil.copyfile(src, dst, *args, **kwargs)
         try:
             shutil.copystat(src, dst, *args, **kwargs)
-        except PermissionError as e:
+        except OSError as e:
             if e.errno != getattr(errno, 'EPERM', None):
                 raise
         return dst
 
-    def move(*args, copy_function=copy2, **kwargs):
-        return shutil.move(*args, copy_function=copy_function, **kwargs)
+    def move(*args, **kwargs):
+        if 'copy_function' not in kwargs:
+            kwargs['copy_function'] = copy2
+        return shutil.move(*args, **kwargs)

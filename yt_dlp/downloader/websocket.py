@@ -1,3 +1,5 @@
+from __future__ import with_statement
+from __future__ import absolute_import
 import asyncio
 import contextlib
 import os
@@ -10,11 +12,11 @@ from ..dependencies import websockets
 
 
 class FFmpegSinkFD(FileDownloader):
-    """ A sink to ffmpeg for downloading fragments in any form """
+    u""" A sink to ffmpeg for downloading fragments in any form """
 
     def real_download(self, filename, info_dict):
         info_copy = info_dict.copy()
-        info_copy['url'] = '-'
+        info_copy[u'url'] = u'-'
 
         async def call_conn(proc, stdin):
             try:
@@ -39,15 +41,15 @@ class FFmpegSinkFD(FileDownloader):
         return FFmpegStdinFD(self.ydl, self.params or {}).download(filename, info_copy)
 
     async def real_connection(self, sink, info_dict):
-        """ Override this in subclasses """
-        raise NotImplementedError('This method must be implemented by subclasses')
+        u""" Override this in subclasses """
+        raise NotImplementedError(u'This method must be implemented by subclasses')
 
 
 class WebSocketFragmentFD(FFmpegSinkFD):
     async def real_connection(self, sink, info_dict):
-        async with websockets.connect(info_dict['url'], extra_headers=info_dict.get('http_headers', {})) as ws:
+        async with websockets.connect(info_dict[u'url'], extra_headers=info_dict.get(u'http_headers', {})) as ws:
             while True:
                 recv = await ws.recv()
-                if isinstance(recv, str):
-                    recv = recv.encode('utf8')
+                if isinstance(recv, unicode):
+                    recv = recv.encode(u'utf8')
                 sink.write(recv)

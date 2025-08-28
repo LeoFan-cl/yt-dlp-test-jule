@@ -1,125 +1,121 @@
+from __future__ import absolute_import
 import re
 
 from .common import PostProcessor
-from ..utils import Namespace, filter_dict, function_with_repr
+from ..utils import (
+    PostProcessingError,
+    traverse_obj,
+)
 
 
 class MetadataParserPP(PostProcessor):
     def __init__(self, downloader, actions):
-        super().__init__(downloader)
+        super(MetadataParserPP, self).__init__(downloader)
         self._actions = []
         for f in actions:
-            action, *args = f
+            action = f[0]
+            args = f[1:]
             assert action in self.Actions
             self._actions.append(action(self, *args))
 
     @classmethod
     def validate_action(cls, action, *data):
-        """Each action can be:
+        u"""Each action can be:
                 (Actions.INTERPRET, from, to) OR
                 (Actions.REPLACE, field, search, replace)
         """
-        if action not in cls.Actions:
-            raise ValueError(f'{action!r} is not a valid action')
-        action(cls, *data)  # So this can raise error to validate
+        assert action in cls.Actions
+        assert len(data) == cls.Actions(action).value
 
     @staticmethod
     def field_to_template(tmpl):
-        if re.match(r'[a-zA-Z_]+$', tmpl):
-            return f'%({tmpl})s'
+        if re.match(ur'[a-zA-Z_]+$', tmpl):
+            return u'%({tmpl})s'.format(tmpl=tmpl)
 
         from ..YoutubeDL import YoutubeDL
-        err = YoutubeDL.validate_outtmpl(tmpl)
-        if err:
-            raise err
-        return tmpl
+        return YoutubeDL.escape_outtmpl(tmpl)
 
     @staticmethod
     def format_to_regex(fmt):
-        r"""
+        ur"""
         Converts a string like
            '%(title)s - %(artist)s'
         to a regex like
            '(?P<title>.+)\ \-\ (?P<artist>.+)'
         """
-        if not re.search(r'%\(\w+\)s', fmt):
+        if not re.search(ur'%\\(\\w+\\)s', fmt):
             return fmt
         lastpos = 0
-        regex = ''
+        regex = u''
         # replace %(..)s with regex group and escape other string parts
-        for match in re.finditer(r'%\((\w+)\)s', fmt):
+        for match in re.finditer(ur'%\\((\\w+)\\)s', fmt):
             regex += re.escape(fmt[lastpos:match.start()])
-            regex += rf'(?P<{match.group(1)}>.+)'
+            regex += ur'(?P<{group}>.+)'.format(group=match.group(1))
             lastpos = match.end()
-        if lastpos < len(fmt):
-            regex += re.escape(fmt[lastpos:])
+        regex += re.escape(fmt[lastpos:])
         return regex
 
     def run(self, info):
-        for f in self._actions:
-            f(info)
+        for action in self._actions:
+            action(info)
         return [], info
 
-    @function_with_repr
-    def interpretter(self, inp, out):
-        def f(info):
-            data_to_parse = self._downloader.evaluate_outtmpl(template, info)
-            self.write_debug(f'Searching for {out_re.pattern!r} in {template!r}')
-            match = out_re.search(data_to_parse)
-            if match is None:
-                self.to_screen(f'Could not interpret {inp!r} as {out!r}')
-                return
-            for attribute, value in filter_dict(match.groupdict()).items():
-                info[attribute] = value
-                self.to_screen(f'Parsed {attribute} from {template!r}: {value!r}')
+    class Actions:
+        class INTERPRET:
+            value = 2
+            def __init__(self, pp, outtmpl, intmpl):
+                self.pp = pp
+                self.outtmpl = pp.field_to_template(outtmpl)
+                self.regex = pp.format_to_regex(intmpl)
 
-        template = self.field_to_template(inp)
-        out_re = re.compile(self.format_to_regex(out))
-        return f
+            def __call__(self, info):
+                match = re.match(self.regex, self.pp.get_param('from', info))
+                if match is None:
+                    self.pp.report_warning('could not interpret "%s" as "%s"' % (
+                        self.pp.get_param('from', info), self.pp.get_param('to', info)))
+                    return
+                for key, value in match.groupdict().items():
+                    info[key] = value
 
-    @function_with_repr
-    def replacer(self, field, search, replace):
-        def f(info):
-            val = info.get(field)
-            if val is None:
-                self.to_screen(f'Video does not have a {field}')
-                return
-            elif not isinstance(val, str):
-                self.report_warning(f'Cannot replace in field {field} since it is a {type(val).__name__}')
-                return
-            self.write_debug(f'Replacing all {search!r} in {field} with {replace!r}')
-            info[field], n = search_re.subn(replace, val)
-            if n:
-                self.to_screen(f'Changed {field} to: {info[field]}')
-            else:
-                self.to_screen(f'Did not find {search!r} in {field}')
+        class REPLACE:
+            value = 3
+            def __init__(self, pp, field, search, replace):
+                self.pp, self.field, self.search, self.replace = pp, field, search, replace
 
-        search_re = re.compile(search)
-        return f
-
-    Actions = Namespace(INTERPRET=interpretter, REPLACE=replacer)
+            def __call__(self, info):
+                val = traverse_obj(info, self.field, casesense=False)
+                if val is None:
+                    self.pp.to_screen('Video does not have a %s' % self.field)
+                    return
+                elif not isinstance(val, (str, unicode)):
+                    self.pp.report_warning('Cannot replace in field %s since it is a %s' % (
+                        self.field, type(val).__name__))
+                    return
+                self.pp.write_debug('Replacing all %r in %s with %r' % (
+                    self.search, self.field, self.replace))
+                info[self.field] = val.replace(self.search, self.replace)
 
 
 class MetadataFromFieldPP(MetadataParserPP):
     @classmethod
     def to_action(cls, f):
-        match = re.match(r'(?s)(?P<in>.*?)(?<!\\):(?P<out>.+)$', f)
+        match = re.match(ur'(?s)(?P<in>.*?)(?<!\\):(?P<out>.+)$', f)
         if match is None:
-            raise ValueError(f'it should be FROM:TO, not {f!r}')
+            raise ValueError('it should be FROM:TO, not %r' % f)
         return (
             cls.Actions.INTERPRET,
-            match.group('in').replace('\\:', ':'),
-            match.group('out'),
+            match.group(u'in').replace(u'\\:', u':'),
+            match.group(u'out'),
         )
 
     def __init__(self, downloader, formats):
-        super().__init__(downloader, [self.to_action(f) for f in formats])
+        super(MetadataFromFieldPP, self).__init__(downloader, [self.to_action(f) for f in formats])
 
 
 # Deprecated
 class MetadataFromTitlePP(MetadataParserPP):
     def __init__(self, downloader, titleformat):
-        super().__init__(downloader, [(self.Actions.INTERPRET, 'title', titleformat)])
+        super(MetadataFromTitlePP, self).__init__(downloader, [(self.Actions.INTERPRET, u'title', titleformat)])
         self.deprecation_warning(
-            'yt_dlp.postprocessor.MetadataFromTitlePP is deprecated '
-            'and may be removed in a future version. Use yt_dlp.postprocessor.MetadataFromFieldPP instead')
+            u'yt_dlp.postprocessor.MetadataFromTitlePP is deprecated '
+            u'and may be removed in a future version. Use yt_dlp.postprocessor.MetadataFromFieldPP instead')

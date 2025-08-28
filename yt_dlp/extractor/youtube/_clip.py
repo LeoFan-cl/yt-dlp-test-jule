@@ -1,3 +1,6 @@
+# coding: utf-8
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 from ._tab import YoutubeTabBaseInfoExtractor
 from ._video import YoutubeIE
 from ...utils import ExtractorError, traverse_obj
@@ -57,12 +60,12 @@ class YoutubeClipIE(YoutubeTabBaseInfoExtractor):
 
         return {
             '_type': 'url_transparent',
-            'url': f'https://www.youtube.com/watch?v={video_id}',
+            'url': 'https://www.youtube.com/watch?v={0}'.format(video_id),
             'ie_key': YoutubeIE.ie_key(),
             'id': clip_id,
             'media_type': 'clip',
             'section_start': int(clip_data['startTimeMs']) / 1000,
             'section_end': int(clip_data['endTimeMs']) / 1000,
-            '_format_sort_fields': (  # https protocol is prioritized for ffmpeg compatibility
+            '_format_sort_fields': (
                 'proto:https', 'quality', 'res', 'fps', 'hdr:12', 'source', 'vcodec', 'channels', 'acodec', 'lang'),
         }

@@ -1,5 +1,7 @@
-import os
-
-
-def get_hook_dirs():
-    return [os.path.dirname(__file__)]
+b'--- ./yt_dlp/__pyinstaller/__init__.py\t(original)'
+b'+++ ./yt_dlp/__pyinstaller/__init__.py\t(refactored)'
+b'@@ -1,3 +1,4 @@'
+b'+from __future__ import absolute_import'
+b' import os'
+b' '
+b' '

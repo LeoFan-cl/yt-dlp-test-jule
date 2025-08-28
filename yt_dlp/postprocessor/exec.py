@@ -1,40 +1,46 @@
+from __future__ import absolute_import
 from .common import PostProcessor
 from ..utils import Popen, PostProcessingError, shell_quote, variadic
 
 
 class ExecPP(PostProcessor):
-
     def __init__(self, downloader, exec_cmd):
-        PostProcessor.__init__(self, downloader)
-        self.exec_cmd = variadic(exec_cmd)
+        super(ExecPP, self).__init__(downloader)
+        self.exec_cmd = exec_cmd
 
-    def parse_cmd(self, cmd, info):
-        tmpl, tmpl_dict = self._downloader.prepare_outtmpl(cmd, info)
+    def run_on_all(self, tmpl, info):
+        for exec_cmd in variadic(self.exec_cmd):
+            self.run_cmd(self.format_cmd(exec_cmd, info, tmpl))
+        return [], info
+
+    def format_cmd(self, cmd, info, tmpl_dict):
         if tmpl_dict:  # if there are no replacements, tmpl_dict = {}
-            return self._downloader.escape_outtmpl(tmpl) % tmpl_dict
+            return self._downloader.escape_outtmpl(cmd) % tmpl_dict
 
-        filepath = info.get('filepath', info.get('_filename'))
+        filepath = info.get(u'filepath', info.get(u'_filename'))
         # If video, and no replacements are found, replace {} for backard compatibility
         if filepath:
-            if '{}' not in cmd:
-                cmd += ' {}'
-            cmd = cmd.replace('{}', shell_quote(filepath, shell=True))
+            if u'{}' not in cmd:
+                cmd += u' {}'
+            cmd = cmd.replace(u'{}', shell_quote(filepath, shell=True))
         return cmd
 
     def run(self, info):
-        for tmpl in self.exec_cmd:
-            cmd = self.parse_cmd(tmpl, info)
-            self.to_screen(f'Executing command: {cmd}')
-            _, _, return_code = Popen.run(cmd, shell=True)
-            if return_code != 0:
-                raise PostProcessingError(f'Command returned error code {return_code}')
+        self.run_cmd(self.format_cmd(self.exec_cmd, info, info))
         return [], info
+
+    def run_cmd(self, cmd):
+        self.to_screen('Executing command: %s' % cmd)
+        ret = Popen.run(cmd, shell=True)
+        if ret.returncode != 0:
+            raise PostProcessingError(
+                'Command returned error code %d' % ret.returncode)
 
 
 # Deprecated
 class ExecAfterDownloadPP(ExecPP):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super(ExecAfterDownloadPP, self).__init__(*args, **kwargs)
         self.deprecation_warning(
-            'yt_dlp.postprocessor.ExecAfterDownloadPP is deprecated '
-            'and may be removed in a future version. Use yt_dlp.postprocessor.ExecPP instead')
+            u'yt_dlp.postprocessor.ExecAfterDownloadPP is deprecated '
+            u'and may be removed in a future version. Use yt_dlp.postprocessor.ExecPP instead')
