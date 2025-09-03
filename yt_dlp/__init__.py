@@ -9,7 +9,6 @@ __license__ = 'The Unlicense'
 import collections
 import getpass
 import itertools
-from itertools import ifilter, imap
 import optparse
 import os
 import re

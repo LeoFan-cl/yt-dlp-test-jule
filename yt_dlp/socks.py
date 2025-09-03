@@ -1,229 +1,274 @@
-b'--- ./yt_dlp/socks.py\t(original)'
-b'+++ ./yt_dlp/socks.py\t(refactored)'
-b'@@ -6,13 +6,14 @@'
-b' # SOCKS5 protocol https://tools.ietf.org/html/rfc1928'
-b' # SOCKS5 username/password authentication https://tools.ietf.org/html/rfc1929'
-b' '
-b'+from __future__ import absolute_import'
-b' import collections'
-b' import socket'
-b' import struct'
-b' '
-b' from .compat import compat_ord'
-b' '
-b"-__author__ = 'Timo Schmid <coding@timoschmid.de>'"
-b"+__author__ = u'Timo Schmid <coding@timoschmid.de>'"
-b' '
-b' SOCKS4_VERSION = 4'
-b' SOCKS4_REPLY_VERSION = 0x00'
-b'@@ -20,14 +21,14 @@'
-b" # if the client cannot resolve the destination host's domain name to find its"
-b' # IP address, it should set the first three bytes of DSTIP to NULL and the last'
-b' # byte to a non-zero value.'
-b"-SOCKS4_DEFAULT_DSTIP = struct.pack('!BBBB', 0, 0, 0, 0xFF)"
-b"+SOCKS4_DEFAULT_DSTIP = struct.pack(u'!BBBB', 0, 0, 0, 0xFF)"
-b' '
-b' SOCKS5_VERSION = 5'
-b' SOCKS5_USER_AUTH_VERSION = 0x01'
-b' SOCKS5_USER_AUTH_SUCCESS = 0x00'
-b' '
-b' '
-b'-class Socks4Command:'
-b'+class Socks4Command(object):'
-b'     CMD_CONNECT = 0x01'
-b'     CMD_BIND = 0x02'
-b' '
-b'@@ -36,14 +37,14 @@'
-b'     CMD_UDP_ASSOCIATE = 0x03'
-b' '
-b' '
-b'-class Socks5Auth:'
-b'+class Socks5Auth(object):'
-b'     AUTH_NONE = 0x00'
-b'     AUTH_GSSAPI = 0x01'
-b'     AUTH_USER_PASS = 0x02'
-b'     AUTH_NO_ACCEPTABLE = 0xFF  # For server response'
-b' '
-b' '
-b'-class Socks5AddressType:'
-b'+class Socks5AddressType(object):'
-b'     ATYP_IPV4 = 0x01'
-b'     ATYP_DOMAINNAME = 0x03'
-b'     ATYP_IPV6 = 0x04'
-b'@@ -54,24 +55,24 @@'
-b' '
-b'     def __init__(self, code=None, msg=None):'
-b'         if code is not None and msg is None:'
-b"-            msg = self.CODES.get(code) or 'unknown error'"
-b'-        super().__init__(code, msg)'
-b"+            msg = self.CODES.get(code) or u'unknown error'"
-b'+        super(ProxyError, self).__init__(code, msg)'
-b' '
-b' '
-b' class InvalidVersionError(ProxyError):'
-b'     def __init__(self, expected_version, got_version):'
-b"         msg = (f'Invalid response version from server. Expected {expected_version:02x} got '"
-b"                f'{got_version:02x}')"
-b'-        super().__init__(0, msg)'
-b'+        super(InvalidVersionError, self).__init__(0, msg)'
-b' '
-b' '
-b' class Socks4Error(ProxyError):'
-b'     ERR_SUCCESS = 90'
-b' '
-b'     CODES = {'
-b"-        91: 'request rejected or failed',"
-b"-        92: 'request rejected because SOCKS server cannot connect to identd on the client',"
-b"-        93: 'request rejected because the client program and identd report different user-ids',"
-b"+        91: u'request rejected or failed',"
-b"+        92: u'request rejected because SOCKS server cannot connect to identd on the client',"
-b"+        93: u'request rejected because the client program and identd report different user-ids',"
-b'     }'
-b' '
-b' '
-b'@@ -79,33 +80,33 @@'
-b'     ERR_GENERAL_FAILURE = 0x01'
-b' '
-b'     CODES = {'
-b"-        0x01: 'general SOCKS server failure',"
-b"-        0x02: 'connection not allowed by ruleset',"
-b"-        0x03: 'Network unreachable',"
-b"-        0x04: 'Host unreachable',"
-b"-        0x05: 'Connection refused',"
-b"-        0x06: 'TTL expired',"
-b"-        0x07: 'Command not supported',"
-b"-        0x08: 'Address type not supported',"
-b"-        0xFE: 'unknown username or invalid password',"
-b"-        0xFF: 'all offered authentication methods were rejected',"
-b"+        0x01: u'general SOCKS server failure',"
-b"+        0x02: u'connection not allowed by ruleset',"
-b"+        0x03: u'Network unreachable',"
-b"+        0x04: u'Host unreachable',"
-b"+        0x05: u'Connection refused',"
-b"+        0x06: u'TTL expired',"
-b"+        0x07: u'Command not supported',"
-b"+        0x08: u'Address type not supported',"
-b"+        0xFE: u'unknown username or invalid password',"
-b"+        0xFF: u'all offered authentication methods were rejected',"
-b'     }'
-b' '
-b' '
-b'-class ProxyType:'
-b'+class ProxyType(object):'
-b'     SOCKS4 = 0'
-b'     SOCKS4A = 1'
-b'     SOCKS5 = 2'
-b' '
-b' '
-b"-Proxy = collections.namedtuple('Proxy', ("
-b"-    'type', 'host', 'port', 'username', 'password', 'remote_dns'))"
-b"+Proxy = collections.namedtuple(u'Proxy', ("
-b"+    u'type', u'host', u'port', u'username', u'password', u'remote_dns'))"
-b' '
-b' '
-b' class sockssocket(socket.socket):'
-b'     def __init__(self, *args, **kwargs):'
-b'         self._proxy = None'
-b'-        super().__init__(*args, **kwargs)'
-b'+        super(sockssocket, self).__init__(*args, **kwargs)'
-b' '
-b'     def setproxy(self, proxytype, addr, port, rdns=True, username=None, password=None):'
-b'         assert proxytype in (ProxyType.SOCKS4, ProxyType.SOCKS4A, ProxyType.SOCKS5)'
-b'@@ -113,7 +114,7 @@'
-b'         self._proxy = Proxy(proxytype, addr, port, username, password, rdns)'
-b' '
-b'     def recvall(self, cnt):'
-b"-        data = b''"
-b"+        data = ''"
-b'         while len(data) < cnt:'
-b'             cur = self.recv(cnt - len(data))'
-b'             if not cur:'
-b'@@ -127,7 +128,7 @@'
-b' '
-b'     @staticmethod'
-b'     def _len_and_data(data):'
-b"-        return struct.pack('!B', len(data)) + data"
-b"+        return struct.pack(u'!B', len(data)) + data"
-b' '
-b'     def _check_response_version(self, expected_version, got_version):'
-b'         if got_version != expected_version:'
-b'@@ -153,17 +154,17 @@'
-b' '
-b'         _, ipaddr = self._resolve_address(destaddr, SOCKS4_DEFAULT_DSTIP, use_remote_dns=is_4a, family=socket.AF_INET)'
-b' '
-b"-        packet = struct.pack('!BBH', SOCKS4_VERSION, Socks4Command.CMD_CONNECT, port) + ipaddr"
-b'-'
-b"-        username = (self._proxy.username or '').encode()"
-b"-        packet += username + b'\\x00'"
-b"+        packet = struct.pack(u'!BBH', SOCKS4_VERSION, Socks4Command.CMD_CONNECT, port) + ipaddr"
-b'+'
-b"+        username = (self._proxy.username or u'').encode()"
-b"+        packet += username + '\\x00'"
-b' '
-b'         if is_4a and self._proxy.remote_dns and ipaddr == SOCKS4_DEFAULT_DSTIP:'
-b"-            packet += destaddr.encode() + b'\\x00'"
-b"+            packet += destaddr.encode() + '\\x00'"
-b' '
-b'         self.sendall(packet)'
-b' '
-b"-        version, resp_code, dstport, dsthost = struct.unpack('!BBHI', self.recvall(8))"
-b"+        version, resp_code, dstport, dsthost = struct.unpack(u'!BBHI', self.recvall(8))"
-b' '
-b'         self._check_response_version(SOCKS4_REPLY_VERSION, version)'
-b' '
-b'@@ -177,13 +178,13 @@'
-b'         self._setup_socks4(address, is_4a=True)'
-b' '
-b'     def _socks5_auth(self):'
-b"-        packet = struct.pack('!B', SOCKS5_VERSION)"
-b"+        packet = struct.pack(u'!B', SOCKS5_VERSION)"
-b' '
-b'         auth_methods = [Socks5Auth.AUTH_NONE]'
-b'         if self._proxy.username and self._proxy.password:'
-b'             auth_methods.append(Socks5Auth.AUTH_USER_PASS)'
-b' '
-b"-        packet += struct.pack('!B', len(auth_methods))"
-b"+        packet += struct.pack(u'!B', len(auth_methods))"
-b"         packet += struct.pack(f'!{len(auth_methods)}B', *auth_methods)"
-b' '
-b'         self.sendall(packet)'
-b'@@ -200,7 +201,7 @@'
-b'         if method == Socks5Auth.AUTH_USER_PASS:'
-b'             username = self._proxy.username.encode()'
-b'             password = self._proxy.password.encode()'
-b"-            packet = struct.pack('!B', SOCKS5_USER_AUTH_VERSION)"
-b"+            packet = struct.pack(u'!B', SOCKS5_USER_AUTH_VERSION)"
-b'             packet += self._len_and_data(username) + self._len_and_data(password)'
-b'             self.sendall(packet)'
-b' '
-b'@@ -220,16 +221,16 @@'
-b'         self._socks5_auth()'
-b' '
-b'         reserved = 0'
-b"-        packet = struct.pack('!BBB', SOCKS5_VERSION, Socks5Command.CMD_CONNECT, reserved)"
-b"+        packet = struct.pack(u'!BBB', SOCKS5_VERSION, Socks5Command.CMD_CONNECT, reserved)"
-b'         if ipaddr is None:'
-b'             destaddr = destaddr.encode()'
-b"-            packet += struct.pack('!B', Socks5AddressType.ATYP_DOMAINNAME)"
-b"+            packet += struct.pack(u'!B', Socks5AddressType.ATYP_DOMAINNAME)"
-b'             packet += self._len_and_data(destaddr)'
-b'         elif family == socket.AF_INET:'
-b"-            packet += struct.pack('!B', Socks5AddressType.ATYP_IPV4) + ipaddr"
-b"+            packet += struct.pack(u'!B', Socks5AddressType.ATYP_IPV4) + ipaddr"
-b'         elif family == socket.AF_INET6:'
-b"-            packet += struct.pack('!B', Socks5AddressType.ATYP_IPV6) + ipaddr"
-b"-        packet += struct.pack('!H', port)"
-b"+            packet += struct.pack(u'!B', Socks5AddressType.ATYP_IPV6) + ipaddr"
-b"+        packet += struct.pack(u'!H', port)"
-b' '
-b'         self.sendall(packet)'
-b' '
-b'@@ -248,7 +249,7 @@'
-b'             destaddr = self.recvall(alen)'
-b'         elif atype == Socks5AddressType.ATYP_IPV6:'
-b'             destaddr = self.recvall(16)'
-b"-        destport = struct.unpack('!H', self.recvall(2))[0]"
-b"+        destport = struct.unpack(u'!H', self.recvall(2))[0]"
-b' '
-b'         return (destaddr, destport)'
-b' '
+# Public Domain SOCKS proxy protocol implementation
+# Adapted from https://gist.github.com/bluec0re/cafd3764412967417fd3
+# References:
+# SOCKS4 protocol http://www.openssh.com/txt/socks4.protocol
+# SOCKS4A protocol http://www.openssh.com/txt/socks4a.protocol
+# SOCKS5 protocol https://tools.ietf.org/html/rfc1928
+# SOCKS5 username/password authentication https://tools.ietf.org/html/rfc1929
+
+import collections
+import socket
+import struct
+
+from .compat import compat_ord
+
+__author__ = 'Timo Schmid <coding@timoschmid.de>'
+
+SOCKS4_VERSION = 4
+SOCKS4_REPLY_VERSION = 0x00
+# Excerpt from SOCKS4A protocol:
+# if the client cannot resolve the destination host's domain name to find its
+# IP address, it should set the first three bytes of DSTIP to NULL and the last
+# byte to a non-zero value.
+SOCKS4_DEFAULT_DSTIP = struct.pack('!BBBB', 0, 0, 0, 0xFF)
+
+SOCKS5_VERSION = 5
+SOCKS5_USER_AUTH_VERSION = 0x01
+SOCKS5_USER_AUTH_SUCCESS = 0x00
+
+
+class Socks4Command:
+    CMD_CONNECT = 0x01
+    CMD_BIND = 0x02
+
+
+class Socks5Command(Socks4Command):
+    CMD_UDP_ASSOCIATE = 0x03
+
+
+class Socks5Auth:
+    AUTH_NONE = 0x00
+    AUTH_GSSAPI = 0x01
+    AUTH_USER_PASS = 0x02
+    AUTH_NO_ACCEPTABLE = 0xFF  # For server response
+
+
+class Socks5AddressType:
+    ATYP_IPV4 = 0x01
+    ATYP_DOMAINNAME = 0x03
+    ATYP_IPV6 = 0x04
+
+
+class ProxyError(OSError):
+    ERR_SUCCESS = 0x00
+
+    def __init__(self, code=None, msg=None):
+        if code is not None and msg is None:
+            msg = self.CODES.get(code) or 'unknown error'
+        super().__init__(code, msg)
+
+
+class InvalidVersionError(ProxyError):
+    def __init__(self, expected_version, got_version):
+        msg = (f'Invalid response version from server. Expected {expected_version:02x} got '
+               f'{got_version:02x}')
+        super().__init__(0, msg)
+
+
+class Socks4Error(ProxyError):
+    ERR_SUCCESS = 90
+
+    CODES = {
+        91: 'request rejected or failed',
+        92: 'request rejected because SOCKS server cannot connect to identd on the client',
+        93: 'request rejected because the client program and identd report different user-ids',
+    }
+
+
+class Socks5Error(ProxyError):
+    ERR_GENERAL_FAILURE = 0x01
+
+    CODES = {
+        0x01: 'general SOCKS server failure',
+        0x02: 'connection not allowed by ruleset',
+        0x03: 'Network unreachable',
+        0x04: 'Host unreachable',
+        0x05: 'Connection refused',
+        0x06: 'TTL expired',
+        0x07: 'Command not supported',
+        0x08: 'Address type not supported',
+        0xFE: 'unknown username or invalid password',
+        0xFF: 'all offered authentication methods were rejected',
+    }
+
+
+class ProxyType:
+    SOCKS4 = 0
+    SOCKS4A = 1
+    SOCKS5 = 2
+
+
+Proxy = collections.namedtuple('Proxy', (
+    'type', 'host', 'port', 'username', 'password', 'remote_dns'))
+
+
+class sockssocket(socket.socket):
+    def __init__(self, *args, **kwargs):
+        self._proxy = None
+        super().__init__(*args, **kwargs)
+
+    def setproxy(self, proxytype, addr, port, rdns=True, username=None, password=None):
+        assert proxytype in (ProxyType.SOCKS4, ProxyType.SOCKS4A, ProxyType.SOCKS5)
+
+        self._proxy = Proxy(proxytype, addr, port, username, password, rdns)
+
+    def recvall(self, cnt):
+        data = b''
+        while len(data) < cnt:
+            cur = self.recv(cnt - len(data))
+            if not cur:
+                raise EOFError(f'{cnt - len(data)} bytes missing')
+            data += cur
+        return data
+
+    def _recv_bytes(self, cnt):
+        data = self.recvall(cnt)
+        return struct.unpack(f'!{cnt}B', data)
+
+    @staticmethod
+    def _len_and_data(data):
+        return struct.pack('!B', len(data)) + data
+
+    def _check_response_version(self, expected_version, got_version):
+        if got_version != expected_version:
+            self.close()
+            raise InvalidVersionError(expected_version, got_version)
+
+    def _resolve_address(self, destaddr, default, use_remote_dns, family=None):
+        for f in (family,) if family else (socket.AF_INET, socket.AF_INET6):
+            try:
+                return f, socket.inet_pton(f, destaddr)
+            except OSError:
+                continue
+
+        if use_remote_dns and self._proxy.remote_dns:
+            return 0, default
+        else:
+            res = socket.getaddrinfo(destaddr, None, family=family or 0)
+            f, _, _, _, ipaddr = res[0]
+            return f, socket.inet_pton(f, ipaddr[0])
+
+    def _setup_socks4(self, address, is_4a=False):
+        destaddr, port = address
+
+        _, ipaddr = self._resolve_address(destaddr, SOCKS4_DEFAULT_DSTIP, use_remote_dns=is_4a, family=socket.AF_INET)
+
+        packet = struct.pack('!BBH', SOCKS4_VERSION, Socks4Command.CMD_CONNECT, port) + ipaddr
+
+        username = (self._proxy.username or '').encode()
+        packet += username + b'\x00'
+
+        if is_4a and self._proxy.remote_dns and ipaddr == SOCKS4_DEFAULT_DSTIP:
+            packet += destaddr.encode() + b'\x00'
+
+        self.sendall(packet)
+
+        version, resp_code, dstport, dsthost = struct.unpack('!BBHI', self.recvall(8))
+
+        self._check_response_version(SOCKS4_REPLY_VERSION, version)
+
+        if resp_code != Socks4Error.ERR_SUCCESS:
+            self.close()
+            raise Socks4Error(resp_code)
+
+        return (dsthost, dstport)
+
+    def _setup_socks4a(self, address):
+        self._setup_socks4(address, is_4a=True)
+
+    def _socks5_auth(self):
+        packet = struct.pack('!B', SOCKS5_VERSION)
+
+        auth_methods = [Socks5Auth.AUTH_NONE]
+        if self._proxy.username and self._proxy.password:
+            auth_methods.append(Socks5Auth.AUTH_USER_PASS)
+
+        packet += struct.pack('!B', len(auth_methods))
+        packet += struct.pack(f'!{len(auth_methods)}B', *auth_methods)
+
+        self.sendall(packet)
+
+        version, method = self._recv_bytes(2)
+
+        self._check_response_version(SOCKS5_VERSION, version)
+
+        if method == Socks5Auth.AUTH_NO_ACCEPTABLE or (
+                method == Socks5Auth.AUTH_USER_PASS and (not self._proxy.username or not self._proxy.password)):
+            self.close()
+            raise Socks5Error(Socks5Auth.AUTH_NO_ACCEPTABLE)
+
+        if method == Socks5Auth.AUTH_USER_PASS:
+            username = self._proxy.username.encode()
+            password = self._proxy.password.encode()
+            packet = struct.pack('!B', SOCKS5_USER_AUTH_VERSION)
+            packet += self._len_and_data(username) + self._len_and_data(password)
+            self.sendall(packet)
+
+            version, status = self._recv_bytes(2)
+
+            self._check_response_version(SOCKS5_USER_AUTH_VERSION, version)
+
+            if status != SOCKS5_USER_AUTH_SUCCESS:
+                self.close()
+                raise Socks5Error(Socks5Error.ERR_GENERAL_FAILURE)
+
+    def _setup_socks5(self, address):
+        destaddr, port = address
+
+        family, ipaddr = self._resolve_address(destaddr, None, use_remote_dns=True)
+
+        self._socks5_auth()
+
+        reserved = 0
+        packet = struct.pack('!BBB', SOCKS5_VERSION, Socks5Command.CMD_CONNECT, reserved)
+        if ipaddr is None:
+            destaddr = destaddr.encode()
+            packet += struct.pack('!B', Socks5AddressType.ATYP_DOMAINNAME)
+            packet += self._len_and_data(destaddr)
+        elif family == socket.AF_INET:
+            packet += struct.pack('!B', Socks5AddressType.ATYP_IPV4) + ipaddr
+        elif family == socket.AF_INET6:
+            packet += struct.pack('!B', Socks5AddressType.ATYP_IPV6) + ipaddr
+        packet += struct.pack('!H', port)
+
+        self.sendall(packet)
+
+        version, status, reserved, atype = self._recv_bytes(4)
+
+        self._check_response_version(SOCKS5_VERSION, version)
+
+        if status != Socks5Error.ERR_SUCCESS:
+            self.close()
+            raise Socks5Error(status)
+
+        if atype == Socks5AddressType.ATYP_IPV4:
+            destaddr = self.recvall(4)
+        elif atype == Socks5AddressType.ATYP_DOMAINNAME:
+            alen = compat_ord(self.recv(1))
+            destaddr = self.recvall(alen)
+        elif atype == Socks5AddressType.ATYP_IPV6:
+            destaddr = self.recvall(16)
+        destport = struct.unpack('!H', self.recvall(2))[0]
+
+        return (destaddr, destport)
+
+    def _make_proxy(self, connect_func, address):
+        if not self._proxy:
+            return connect_func(self, address)
+
+        result = connect_func(self, (self._proxy.host, self._proxy.port))
+        if result != 0 and result is not None:
+            return result
+        setup_funcs = {
+            ProxyType.SOCKS4: self._setup_socks4,
+            ProxyType.SOCKS4A: self._setup_socks4a,
+            ProxyType.SOCKS5: self._setup_socks5,
+        }
+        setup_funcs[self._proxy.type](address)
+        return result
+
+    def connect(self, address):
+        self._make_proxy(socket.socket.connect, address)
+
+    def connect_ex(self, address):
+        return self._make_proxy(socket.socket.connect_ex, address)
