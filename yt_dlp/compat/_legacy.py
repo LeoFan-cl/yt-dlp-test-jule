@@ -1,5 +1,5 @@
 # flake8: noqa: F401, F403
-"""
+u"""
 A compatibility layer for Python 2 and 3.
 This is a heavily modified version of the youtube-dl compat module.
 Do not use!
@@ -25,25 +25,25 @@ from ..dependencies.Cryptodome import AES as compat_pycrypto_AES
 from ..networking.exceptions import HTTPError as compat_HTTPError
 from .compat_utils import passthrough_module
 
-passthrough_module(__name__, '...utils', ('windows_enable_vt_mode',))
+passthrough_module(__name__, u'...utils', (u'windows_enable_vt_mode',))
 
 try:
     # Python 3
-    import html.entities as compat_html_entities
-    import html.parser as compat_html_parser
-    import http.client as compat_http_client
-    import http.cookiejar as compat_cookiejar
-    import http.cookies as compat_cookies
+    import htmlentitydefs as compat_html_entities
+    import HTMLParser as compat_html_parser
+    import httplib as compat_http_client
+    import cookielib as compat_cookiejar
+    import Cookie as compat_cookies
     import http.server as compat_http_server
     import urllib.error as compat_urllib_error
     import urllib.parse as compat_urllib_parse
     import urllib.request as compat_urllib_request
     import urllib.response as compat_urllib_response
 
-    compat_basestring = str
-    compat_chr = chr
+    compat_basestring = unicode
+    compat_chr = unichr
     compat_input = input
-    compat_str = str
+    compat_str = unicode
     compat_urllib_parse_urlparse = compat_urllib_parse.urlparse
     compat_urllib_parse_urlencode = compat_urllib_parse.urlencode
     compat_urllib_parse_unquote = compat_urllib_parse.unquote

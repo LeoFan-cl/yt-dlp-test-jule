@@ -10,26 +10,26 @@ from ..compat._legacy import compat_urllib_parse as urllib_parse
 
 
 class DashSegmentsFD(FragmentFD):
-    """
+    u"""
     Download segments in a DASH manifest. External downloaders can take over
     the fragment downloads by supporting the 'dash_frag_urls' protocol
     """
 
-    FD_NAME = 'dashsegments'
+    FD_NAME = u'dashsegments'
 
     def real_download(self, filename, info_dict):
-        if 'http_dash_segments_generator' in info_dict['protocol'].split('+'):
+        if u'http_dash_segments_generator' in info_dict[u'protocol'].split(u'+'):
             real_downloader = None  # No external FD can support --live-from-start
         else:
-            if info_dict.get('is_live'):
-                self.report_error('Live DASH videos are not supported')
+            if info_dict.get(u'is_live'):
+                self.report_error(u'Live DASH videos are not supported')
             real_downloader = get_suitable_downloader(
-                info_dict, self.params, None, protocol='dash_frag_urls', to_stdout=(filename == '-'))
+                info_dict, self.params, None, protocol=u'dash_frag_urls', to_stdout=(filename == u'-'))
 
         real_start = time.time()
 
         requested_formats = []
-        for fmt in info_dict.get('requested_formats', []):
+        for fmt in info_dict.get(u'requested_formats', []):
             new_fmt = info_dict.copy()
             new_fmt.update(fmt)
             requested_formats.append(new_fmt)
@@ -38,27 +38,27 @@ class DashSegmentsFD(FragmentFD):
         for fmt in requested_formats or [info_dict]:
             # Re-extract if --load-info-json is used and 'fragments' was originally a generator
             # See https://github.com/yt-dlp/yt-dlp/issues/13906
-            if isinstance(fmt['fragments'], str):
-                raise ReExtractInfo('the stream needs to be re-extracted', expected=True)
+            if isinstance(fmt[u'fragments'], unicode):
+                raise ReExtractInfo(u'the stream needs to be re-extracted', expected=True)
 
             try:
-                fragment_count = 1 if self.params.get('test') else len(fmt['fragments'])
+                fragment_count = 1 if self.params.get(u'test') else len(fmt[u'fragments'])
             except TypeError:
                 fragment_count = None
             ctx = {
-                'filename': fmt.get('filepath') or filename,
-                'live': 'is_from_start' if fmt.get('is_from_start') else fmt.get('is_live'),
-                'total_frags': fragment_count,
+                u'filename': fmt.get(u'filepath') or filename,
+                u'live': u'is_from_start' if fmt.get(u'is_from_start') else fmt.get(u'is_live'),
+                u'total_frags': fragment_count,
             }
 
             if real_downloader:
                 self._prepare_external_frag_download(ctx)
             else:
                 self._prepare_and_start_frag_download(ctx, fmt)
-            ctx['start'] = real_start
+            ctx[u'start'] = real_start
 
             extra_query = None
-            extra_param_to_segment_url = info_dict.get('extra_param_to_segment_url')
+            extra_param_to_segment_url = info_dict.get(u'extra_param_to_segment_url')
             if extra_param_to_segment_url:
                 extra_query = urllib_parse.parse_qs(extra_param_to_segment_url)
 
@@ -66,8 +66,8 @@ class DashSegmentsFD(FragmentFD):
 
             if real_downloader:
                 self.to_screen(
-                    '[{0}] Fragment downloads will be delegated to {1}'.format(self.FD_NAME, real_downloader.get_basename()))
-                info_dict['fragments'] = list(fragments_to_download)
+                    u'[{0}] Fragment downloads will be delegated to {1}'.format(self.FD_NAME, real_downloader.get_basename()))
+                info_dict[u'fragments'] = list(fragments_to_download)
                 fd = real_downloader(self.ydl, self.params)
                 return fd.real_download(filename, info_dict)
 
@@ -77,27 +77,27 @@ class DashSegmentsFD(FragmentFD):
 
     def _resolve_fragments(self, fragments, ctx):
         fragments = fragments(ctx) if callable(fragments) else fragments
-        return [next(iter(fragments))] if self.params.get('test') else fragments
+        return [iter(fragments).next()] if self.params.get(u'test') else fragments
 
     def _get_fragments(self, fmt, ctx, extra_query):
-        fragment_base_url = fmt.get('fragment_base_url')
-        fragments = self._resolve_fragments(fmt['fragments'], ctx)
+        fragment_base_url = fmt.get(u'fragment_base_url')
+        fragments = self._resolve_fragments(fmt[u'fragments'], ctx)
 
         frag_index = 0
         for i, fragment in enumerate(fragments):
             frag_index += 1
-            if frag_index <= ctx['fragment_index']:
+            if frag_index <= ctx[u'fragment_index']:
                 continue
-            fragment_url = fragment.get('url')
+            fragment_url = fragment.get(u'url')
             if not fragment_url:
                 assert fragment_base_url
-                fragment_url = urljoin(fragment_base_url, fragment['path'])
+                fragment_url = urljoin(fragment_base_url, fragment[u'path'])
             if extra_query:
                 fragment_url = update_url_query(fragment_url, extra_query)
 
             yield {
-                'frag_index': frag_index,
-                'fragment_count': fragment.get('fragment_count'),
-                'index': i,
-                'url': fragment_url,
+                u'frag_index': frag_index,
+                u'fragment_count': fragment.get(u'fragment_count'),
+                u'index': i,
+                u'url': fragment_url,
             }

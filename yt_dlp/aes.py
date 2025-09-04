@@ -9,25 +9,25 @@ from .dependencies import Cryptodome
 
 if Cryptodome.AES:
     def aes_cbc_decrypt_bytes(data, key, iv):
-        """ Decrypt bytes with AES-CBC using pycryptodome """
+        u""" Decrypt bytes with AES-CBC using pycryptodome """
         return Cryptodome.AES.new(key, Cryptodome.AES.MODE_CBC, iv).decrypt(data)
 
     def aes_gcm_decrypt_and_verify_bytes(data, key, tag, nonce):
-        """ Decrypt bytes with AES-GCM using pycryptodome """
+        u""" Decrypt bytes with AES-GCM using pycryptodome """
         return Cryptodome.AES.new(key, Cryptodome.AES.MODE_GCM, nonce).decrypt_and_verify(data, tag)
 
 else:
     def aes_cbc_decrypt_bytes(data, key, iv):
-        """ Decrypt bytes with AES-CBC using native implementation since pycryptodome is unavailable """
-        return b''.join(imap(chr, aes_cbc_decrypt(*imap(list, (data, key, iv)))))
+        u""" Decrypt bytes with AES-CBC using native implementation since pycryptodome is unavailable """
+        return ''.join(imap(unichr, aes_cbc_decrypt(*imap(list, (data, key, iv)))))
 
     def aes_gcm_decrypt_and_verify_bytes(data, key, tag, nonce):
-        """ Decrypt bytes with AES-GCM using native implementation since pycryptodome is unavailable """
-        return b''.join(imap(chr, aes_gcm_decrypt_and_verify(*imap(list, (data, key, tag, nonce)))))
+        u""" Decrypt bytes with AES-GCM using native implementation since pycryptodome is unavailable """
+        return ''.join(imap(unichr, aes_gcm_decrypt_and_verify(*imap(list, (data, key, tag, nonce)))))
 
 
 def aes_cbc_encrypt_bytes(data, key, iv, **kwargs):
-    return b''.join(imap(chr, aes_cbc_encrypt(*imap(list, (data, key, iv)), **kwargs)))
+    return ''.join(imap(unichr, aes_cbc_encrypt(*imap(list, (data, key, iv)), **kwargs)))
 
 
 BLOCK_SIZE_BYTES = 16
@@ -38,7 +38,7 @@ def unpad_pkcs7(data):
 
 
 def pkcs7_padding(data):
-    """
+    u"""
     PKCS#7 padding
 
     @param {int[]} data        cleartext
@@ -50,7 +50,7 @@ def pkcs7_padding(data):
 
 
 def pad_block(block, padding_mode):
-    """
+    u"""
     Pad a block with the given padding mode
     @param {int[]} block        block to pad
     @param padding_mode         padding mode
@@ -58,18 +58,18 @@ def pad_block(block, padding_mode):
     padding_size = BLOCK_SIZE_BYTES - len(block)
 
     PADDING_BYTE = {
-        'pkcs7': padding_size,
-        'iso7816': 0x0,
-        'whitespace': 0x20,
-        'zero': 0x0,
+        u'pkcs7': padding_size,
+        u'iso7816': 0x0,
+        u'whitespace': 0x20,
+        u'zero': 0x0,
     }
 
     if padding_size < 0:
-        raise ValueError('Block size exceeded')
+        raise ValueError(u'Block size exceeded')
     elif padding_mode not in PADDING_BYTE:
-        raise NotImplementedError('Padding mode {0} is not implemented'.format(padding_mode))
+        raise NotImplementedError(u'Padding mode {0} is not implemented'.format(padding_mode))
 
-    if padding_mode == 'iso7816' and padding_size:
+    if padding_mode == u'iso7816' and padding_size:
         block = block + [0x80]  # NB: += mutates list
         padding_size -= 1
 
@@ -77,7 +77,7 @@ def pad_block(block, padding_mode):
 
 
 def aes_ecb_encrypt(data, key, iv=None):
-    """
+    u"""
     Encrypt with aes in ECB mode. Using PKCS#7 padding
 
     @param {int[]} data        cleartext
@@ -97,7 +97,7 @@ def aes_ecb_encrypt(data, key, iv=None):
 
 
 def aes_ecb_decrypt(data, key, iv=None):
-    """
+    u"""
     Decrypt with aes in ECB mode
 
     @param {int[]} data        cleartext
@@ -116,7 +116,7 @@ def aes_ecb_decrypt(data, key, iv=None):
 
 
 def aes_ctr_decrypt(data, key, iv):
-    """
+    u"""
     Decrypt with aes in counter mode
 
     @param {int[]} data        cipher
@@ -128,7 +128,7 @@ def aes_ctr_decrypt(data, key, iv):
 
 
 def aes_ctr_encrypt(data, key, iv):
-    """
+    u"""
     Encrypt with aes in counter mode
 
     @param {int[]} data        cleartext
@@ -142,7 +142,7 @@ def aes_ctr_encrypt(data, key, iv):
 
     encrypted_data = []
     for i in xrange(block_count):
-        counter_block = next(counter)
+        counter_block = counter.next()
         block = data[i * BLOCK_SIZE_BYTES: (i + 1) * BLOCK_SIZE_BYTES]
         block += [0] * (BLOCK_SIZE_BYTES - len(block))
 
@@ -152,7 +152,7 @@ def aes_ctr_encrypt(data, key, iv):
 
 
 def aes_cbc_decrypt(data, key, iv):
-    """
+    u"""
     Decrypt with aes in CBC mode
 
     @param {int[]} data        cipher
@@ -176,7 +176,7 @@ def aes_cbc_decrypt(data, key, iv):
 
 
 def aes_cbc_encrypt(data, key, iv, **kwargs):
-    """
+    u"""
     Encrypt with aes in CBC mode
 
     @param {int[]} data        cleartext
@@ -185,7 +185,7 @@ def aes_cbc_encrypt(data, key, iv, **kwargs):
     @param padding_mode        Padding mode to use
     @returns {int[]}           encrypted data
     """
-    padding_mode = kwargs.pop('padding_mode', 'pkcs7')
+    padding_mode = kwargs.pop(u'padding_mode', u'pkcs7')
     expanded_key = key_expansion(key)
     block_count = int(ceil(len(data) / BLOCK_SIZE_BYTES))
 
@@ -206,7 +206,7 @@ def aes_cbc_encrypt(data, key, iv, **kwargs):
 
 
 def aes_gcm_decrypt_and_verify(data, key, tag, nonce):
-    """
+    u"""
     Decrypt with aes in GBM mode and checks authenticity using tag
 
     @param {int[]} data        cipher
@@ -224,7 +224,7 @@ def aes_gcm_decrypt_and_verify(data, key, tag, nonce):
         j0 = nonce + [0, 0, 0, 1]
     else:
         fill = (BLOCK_SIZE_BYTES - (len(nonce) % BLOCK_SIZE_BYTES)) % BLOCK_SIZE_BYTES + 8
-        ghash_in = nonce + [0] * fill + list(bytearray(struct.pack(b'>Q', 8 * len(nonce))))
+        ghash_in = nonce + [0] * fill + list(bytearray(struct.pack('>Q', 8 * len(nonce))))
         j0 = ghash(hash_subkey, ghash_in)
 
     # TODO: add nonce support to aes_ctr_decrypt
@@ -238,18 +238,18 @@ def aes_gcm_decrypt_and_verify(data, key, tag, nonce):
         hash_subkey,
         data
         + [0] * pad_len                                  # pad
-        + list(bytearray(struct.pack(b'>Q', 0)))      # length of associated data
-        + list(bytearray(struct.pack(b'>Q', len(data) * 8))),  # length of data
+        + list(bytearray(struct.pack('>Q', 0)))      # length of associated data
+        + list(bytearray(struct.pack('>Q', len(data) * 8))),  # length of data
     )
 
     if tag != aes_ctr_encrypt(s_tag, key, j0):
-        raise ValueError('Mismatching authentication tag')
+        raise ValueError(u'Mismatching authentication tag')
 
     return decrypted_data
 
 
 def aes_encrypt(data, expanded_key):
-    """
+    u"""
     Encrypt one block with aes
 
     @param {int[]} data          16-Byte state
@@ -270,7 +270,7 @@ def aes_encrypt(data, expanded_key):
 
 
 def aes_decrypt(data, expanded_key):
-    """
+    u"""
     Decrypt one block with aes
 
     @param {int[]} data          16-Byte cipher
@@ -289,7 +289,7 @@ def aes_decrypt(data, expanded_key):
 
 
 def aes_decrypt_text(data, password, key_size_bytes):
-    """
+    u"""
     Decrypt text
     - The first 8 Bytes of decoded 'data' are the 8 high Bytes of the counter
     - The cipher key is retrieved by encrypting the first 16 Byte of 'password'
@@ -313,7 +313,7 @@ def aes_decrypt_text(data, password, key_size_bytes):
     cipher = data[NONCE_LENGTH_BYTES:]
 
     decrypted_data = aes_ctr_decrypt(cipher, key, nonce + [0] * (BLOCK_SIZE_BYTES - NONCE_LENGTH_BYTES))
-    return b''.join(imap(chr, decrypted_data))
+    return ''.join(imap(unichr, decrypted_data))
 
 
 RCON = (0x8d, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36)
@@ -392,7 +392,7 @@ RIJNDAEL_LOG_TABLE = (0x00, 0x00, 0x19, 0x01, 0x32, 0x02, 0x1a, 0xc6, 0x4b, 0xc7
 
 
 def key_expansion(data):
-    """
+    u"""
     Generate key schedule
 
     @param {int[]} data  16/24/32-Byte cipher key
@@ -439,7 +439,7 @@ def sub_bytes_inv(data):
 
 
 def rotate(data):
-    return [*data[1:], data[0]]
+    return data[1:] + [data[0]]
 
 
 def key_schedule_core(data, rcon_iteration):
@@ -502,7 +502,7 @@ def block_product(block_x, block_y):
     # NIST SP 800-38D, Algorithm 1
 
     if len(block_x) != BLOCK_SIZE_BYTES or len(block_y) != BLOCK_SIZE_BYTES:
-        raise ValueError('Length of blocks need to be {0} bytes'.format(BLOCK_SIZE_BYTES))
+        raise ValueError(u'Length of blocks need to be {0} bytes'.format(BLOCK_SIZE_BYTES))
 
     block_r = [0xE1] + [0] * (BLOCK_SIZE_BYTES - 1)
     block_v = block_y[:]
@@ -525,7 +525,7 @@ def ghash(subkey, data):
     # NIST SP 800-38D, Algorithm 2
 
     if len(data) % BLOCK_SIZE_BYTES:
-        raise ValueError('Length of data should be {0} bytes'.format(BLOCK_SIZE_BYTES))
+        raise ValueError(u'Length of data should be {0} bytes'.format(BLOCK_SIZE_BYTES))
 
     last_y = [0] * BLOCK_SIZE_BYTES
     for i in xrange(0, len(data), BLOCK_SIZE_BYTES):
@@ -536,21 +536,21 @@ def ghash(subkey, data):
 
 
 __all__ = [
-    'aes_cbc_decrypt',
-    'aes_cbc_decrypt_bytes',
-    'aes_cbc_encrypt',
-    'aes_cbc_encrypt_bytes',
-    'aes_ctr_decrypt',
-    'aes_ctr_encrypt',
-    'aes_decrypt',
-    'aes_decrypt_text',
-    'aes_ecb_decrypt',
-    'aes_ecb_encrypt',
-    'aes_encrypt',
-    'aes_gcm_decrypt_and_verify',
-    'aes_gcm_decrypt_and_verify_bytes',
-    'key_expansion',
-    'pad_block',
-    'pkcs7_padding',
-    'unpad_pkcs7',
+    u'aes_cbc_decrypt',
+    u'aes_cbc_decrypt_bytes',
+    u'aes_cbc_encrypt',
+    u'aes_cbc_encrypt_bytes',
+    u'aes_ctr_decrypt',
+    u'aes_ctr_encrypt',
+    u'aes_decrypt',
+    u'aes_decrypt_text',
+    u'aes_ecb_decrypt',
+    u'aes_ecb_encrypt',
+    u'aes_encrypt',
+    u'aes_gcm_decrypt_and_verify',
+    u'aes_gcm_decrypt_and_verify_bytes',
+    u'key_expansion',
+    u'pad_block',
+    u'pkcs7_padding',
+    u'unpad_pkcs7',
 ]

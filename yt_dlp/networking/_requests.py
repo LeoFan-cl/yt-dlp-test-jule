@@ -20,11 +20,11 @@ if urllib3 is None:
 urllib3_version = tuple(int_or_none(x, default=0) for x in urllib3.__version__.split(u'.'))
 
 if urllib3_version < (2, 0, 2):
-    urllib3._yt_dlp__version = '%s (unsupported)' % urllib3.__version__
+    urllib3._yt_dlp__version = u'%s (unsupported)' % urllib3.__version__
     raise ImportError(u'Only urllib3 >= 2.0.2 is supported')
 
 if requests.__build__ < 0x023202:
-    requests._yt_dlp__version = '%s (unsupported)' % requests.__version__
+    requests._yt_dlp__version = u'%s (unsupported)' % requests.__version__
     raise ImportError(u'Only requests >= 2.32.2 is supported')
 
 import requests.adapters
@@ -137,7 +137,7 @@ class RequestsResponseAdapter(Response):
             if amt is None:
                 # Python 3.9 preallocates the whole read buffer, read in chunks
                 read_chunk = functools.partial(self.fp.read, 1 << 20, decode_content=True)
-                return ''.join(iter(read_chunk, ''))
+                return u''.join(iter(read_chunk, u''))
             # Interact with urllib3 response directly.
             return self.fp.read(amt, decode_content=True)
 
@@ -191,7 +191,7 @@ class RequestsHTTPAdapter(requests.adapters.HTTPAdapter):
     # Don't resolve hostnames with the proxy; SOCKS proxies should do this
     def get_connection(self, url, proxies=None):
         proxy = requests.utils.select_proxy(url, proxies)
-        if proxy and proxy.lower().startswith('socks'):
+        if proxy and proxy.lower().startswith(u'socks'):
             return self.get_connection_with_proxy_dns(url, proxies)
         return super(RequestsHTTPAdapter, self).get_connection(url, proxies)
 
@@ -202,7 +202,7 @@ class RequestsSession(requests.sessions.Session):
     """
 
     def rebuild_method(self, prepared_request, response):
-        """
+        u"""
         Don't change the method of the request on redirects.
         This is to simplify the logic of our redirect handler, which will
         determine the correct method to use for the subsequent request.
@@ -363,7 +363,7 @@ def requests_preference(rh, request):
     if not SocksProxyError:
         return -1
     proxies = rh._get_proxies(request)
-    if 'socks' in select_proxy(request.url, proxies):
+    if u'socks' in select_proxy(request.url, proxies):
         return 2
     return 0
 
@@ -383,12 +383,12 @@ class SocksHTTPConnection(urllib3.connection.HTTPConnection):
                     create_socks_proxy_socket, (self.host, self.port), self._proxy_args))
         except (socket.timeout, TimeoutError), e:
             raise urllib3.exceptions.ConnectTimeoutError(
-                self, 'Connection to %s timed out. (connect timeout=%s)' % (self.host, self.timeout))
+                self, u'Connection to %s timed out. (connect timeout=%s)' % (self.host, self.timeout))
         except SocksProxyError, e:
             raise urllib3.exceptions.ProxyError(unicode(e), e)
         except OSError, e:
             raise urllib3.exceptions.NewConnectionError(
-                self, 'Failed to establish a new connection: %s' % e)
+                self, u'Failed to establish a new connection: %s' % e)
 
 
 class SocksHTTPSConnection(SocksHTTPConnection, urllib3.connection.HTTPSConnection):
@@ -414,4 +414,4 @@ class SocksProxyManager(urllib3.PoolManager):
         }
 
 
-requests.adapters.register_transport('socks', SocksProxyManager)
+requests.adapters.register_transport(u'socks', SocksProxyManager)

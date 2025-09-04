@@ -75,8 +75,8 @@ class PostProcessor(object):
 
     def to_screen(self, text, prefix=True, *args, **kwargs):
         if self._downloader:
-            tag = '[%s] ' % self.PP_NAME if prefix else u''
-            return self._downloader.to_screen('%s%s' % (tag, text), *args, **kwargs)
+            tag = u'[%s] ' % self.PP_NAME if prefix else u''
+            return self._downloader.to_screen(u'%s%s' % (tag, text), *args, **kwargs)
 
     def report_warning(self, text, *args, **kwargs):
         if self._downloader:
@@ -123,13 +123,13 @@ class PostProcessor(object):
 
     @staticmethod
     def _restrict_to(**_3to2kwargs):
-        if 'simulated' in _3to2kwargs: simulated = _3to2kwargs['simulated']; del _3to2kwargs['simulated']
+        if u'simulated' in _3to2kwargs: simulated = _3to2kwargs[u'simulated']; del _3to2kwargs[u'simulated']
         else: simulated = True
-        if 'images' in _3to2kwargs: images = _3to2kwargs['images']; del _3to2kwargs['images']
+        if u'images' in _3to2kwargs: images = _3to2kwargs[u'images']; del _3to2kwargs[u'images']
         else: images = True
-        if 'audio' in _3to2kwargs: audio = _3to2kwargs['audio']; del _3to2kwargs['audio']
+        if u'audio' in _3to2kwargs: audio = _3to2kwargs[u'audio']; del _3to2kwargs[u'audio']
         else: audio = True
-        if 'video' in _3to2kwargs: video = _3to2kwargs['video']; del _3to2kwargs['video']
+        if u'video' in _3to2kwargs: video = _3to2kwargs[u'video']; del _3to2kwargs[u'video']
         else: video = True
         allowed = {u'video': video, u'audio': audio, u'images': images}
 
@@ -145,7 +145,7 @@ class PostProcessor(object):
                 if allowed[format_type]:
                     return func(self, info)
                 else:
-                    self.to_screen('Skipping %s format' % format_type)
+                    self.to_screen(u'Skipping %s format' % format_type)
                     return [], info
             return wrapper
         return decorator
@@ -216,17 +216,17 @@ class PostProcessor(object):
                                   sleep_func=self.get_param(u'retry_sleep_functions', {}).get(u'extractor'))
 
     def _download_json(self, url, **_3to2kwargs):
-        if 'expected_http_errors' in _3to2kwargs: expected_http_errors = _3to2kwargs['expected_http_errors']; del _3to2kwargs['expected_http_errors']
+        if u'expected_http_errors' in _3to2kwargs: expected_http_errors = _3to2kwargs[u'expected_http_errors']; del _3to2kwargs[u'expected_http_errors']
         else: expected_http_errors = (404,)
         from ..networking import Request
-        self.write_debug('%s query: %s' % (self.PP_NAME, url))
+        self.write_debug(u'%s query: %s' % (self.PP_NAME, url))
         for retry in RetryManager(self.get_param(u'extractor_retries', 3), self._retry_download):
             try:
                 rsp = self._downloader.urlopen(Request(url))
             except network_exceptions, e:
                 if isinstance(e, HTTPError) and e.status in expected_http_errors:
                     return None
-                retry.error = PostProcessingError('Unable to communicate with %s API: %s' % (self.PP_NAME, e))
+                retry.error = PostProcessingError(u'Unable to communicate with %s API: %s' % (self.PP_NAME, e))
                 continue
         return json.loads(rsp.read().decode(rsp.headers.get_param(u'charset') or u'utf-8'))
 

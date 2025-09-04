@@ -14,7 +14,7 @@ from ..dependencies import certifi
 from ..utils import network_exceptions
 from ..compat import compat_os_name
 
-if compat_os_name == 'nt':
+if compat_os_name == u'nt':
     from ..dependencies import socks
     if socks:
         from socks import (
@@ -72,7 +72,7 @@ def make_socks_proxy_opts(socks_proxy):
         socks_type = ProxyType.SOCKS4A
         rdns = True
     else:
-        raise ValueError('Unsupported SOCKS proxy scheme: %s' % url_components.scheme)
+        raise ValueError(u'Unsupported SOCKS proxy scheme: %s' % url_components.scheme)
 
     def unquote_if_non_empty(s):
         if not s:
@@ -142,11 +142,11 @@ def create_ssl_context(
         context.minimum_version = ssl.TLSVersion.TLSv1_2
 
     if client_certificate:
-        client_certificate_key = client_certificate.get('client_certificate_key')
-        client_certificate_password = client_certificate.get('client_certificate_password')
+        client_certificate_key = client_certificate.get(u'client_certificate_key')
+        client_certificate_password = client_certificate.get(u'client_certificate_password')
         try:
             context.load_cert_chain(
-                client_certificate['client_certificate'], keyfile=client_certificate_key,
+                client_certificate[u'client_certificate'], keyfile=client_certificate_key,
                 password=client_certificate_password)
         except ssl.SSLError:
             raise RequestError(u'Unable to load client certificate')
@@ -187,7 +187,7 @@ def add_accept_encoding_header(headers, supported_encodings):
 
 
 def wrap_request_errors(func):
-    """Wraps a request function to add the request handler to any Exception"""
+    u"""Wraps a request function to add the request handler to any Exception"""
 
     def wrapper(self, *args, **kwargs):
         try:
@@ -242,9 +242,9 @@ def create_connection(
     # Work around socket.create_connection() which tries all addresses from getaddrinfo() including IPv6.
     # This filters the addresses based on the given source_address.
     # Based on: https://github.com/python/cpython/blob/main/Lib/socket.py#L810
-    if '_create_socket_func' in _3to2kwargs:
-        _create_socket_func = _3to2kwargs['_create_socket_func']
-        del _3to2kwargs['_create_socket_func']
+    if u'_create_socket_func' in _3to2kwargs:
+        _create_socket_func = _3to2kwargs[u'_create_socket_func']
+        del _3to2kwargs[u'_create_socket_func']
     else:
         _create_socket_func = _socket_connect
     host, port = address
@@ -256,7 +256,7 @@ def create_connection(
         ip_addrs = [addr for addr in ip_addrs if addr[0] == af]
         if not ip_addrs:
             raise OSError(
-                'no matching address family for %s:%s and source_address %s' % (
+                u'no matching address family for %s:%s and source_address %s' % (
                     host, port, source_address))
     err = None
     for res in ip_addrs:

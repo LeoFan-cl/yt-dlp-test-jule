@@ -44,11 +44,11 @@ class WebsocketsResponseAdapter(WebSocketResponse):
         # websocket-client does not expose the HTTP upgrade response
         # We create a dummy response with status 101
         super(WebsocketsResponseAdapter, self).__init__(
-            fp=io.BytesIO(b''),
+            fp=io.BytesIO(''),
             url=url,
             headers={},
             status=101,
-            reason='Switching Protocols')
+            reason=u'Switching Protocols')
         self._ws = ws
 
     def close(self):
@@ -114,31 +114,31 @@ class WebsocketsRH(WebSocketRequestHandler):
         headers = self._get_headers(request)
 
         conn_kwargs = {
-            'timeout': timeout,
-            'header': headers,
-            'source_address': (self.source_address, 0) if self.source_address else None,
+            u'timeout': timeout,
+            u'header': headers,
+            u'source_address': (self.source_address, 0) if self.source_address else None,
         }
 
         proxy = select_proxy(request.url, self._get_proxies(request))
         if proxy:
             proxy_opts = make_socks_proxy_opts(proxy)
             conn_kwargs.update({
-                'http_proxy_host': proxy_opts['addr'],
-                'http_proxy_port': proxy_opts['port'],
-                'http_proxy_auth': (proxy_opts['username'], proxy_opts['password']) if proxy_opts['username'] else None,
-                'proxy_type': proxy_opts['proxytype'].lower(),
+                u'http_proxy_host': proxy_opts[u'addr'],
+                u'http_proxy_port': proxy_opts[u'port'],
+                u'http_proxy_auth': (proxy_opts[u'username'], proxy_opts[u'password']) if proxy_opts[u'username'] else None,
+                u'proxy_type': proxy_opts[u'proxytype'].lower(),
             })
 
         ssl_ctx = self._make_sslcontext(legacy_ssl_support=request.extensions.get(u'legacy_ssl'))
         sslopt = {
-            "cert_reqs": ssl_ctx.verify_mode,
-            "check_hostname": ssl_ctx.check_hostname,
+            u"cert_reqs": ssl_ctx.verify_mode,
+            u"check_hostname": ssl_ctx.check_hostname,
         }
         if ssl_ctx.verify_mode != ssl.CERT_NONE:
             # websocket-client does not support load_default_certs,
             # so we can't do that. It uses the system's default certs.
             pass
-        conn_kwargs['sslopt'] = sslopt
+        conn_kwargs[u'sslopt'] = sslopt
 
         try:
             conn = create_connection(request.url, **conn_kwargs)

@@ -48,4 +48,4 @@ for _cls in [
     YoutubeTabIE,
     YoutubeIE,
 ]:
-    _cls.__module__ = 'yt_dlp.extractor.youtube'
+    _cls.__module__ = u'yt_dlp.extractor.youtube'

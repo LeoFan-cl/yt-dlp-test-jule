@@ -8,67 +8,67 @@ from ...compat._legacy import compat_urllib_parse as urllib_parse
 
 
 class YoutubeSearchIE(YoutubeTabBaseInfoExtractor, SearchInfoExtractor):
-    IE_DESC = 'YouTube search'
-    IE_NAME = 'youtube:search'
-    _SEARCH_KEY = 'ytsearch'
-    _SEARCH_PARAMS = 'EgIQAfABAQ=='  # Videos only
+    IE_DESC = u'YouTube search'
+    IE_NAME = u'youtube:search'
+    _SEARCH_KEY = u'ytsearch'
+    _SEARCH_PARAMS = u'EgIQAfABAQ=='  # Videos only
     _TESTS = [{
-        'url': 'ytsearch5:youtube-dl test video',
-        'playlist_count': 5,
-        'info_dict': {
-            'id': 'youtube-dl test video',
-            'title': 'youtube-dl test video',
+        u'url': u'ytsearch5:youtube-dl test video',
+        u'playlist_count': 5,
+        u'info_dict': {
+            u'id': u'youtube-dl test video',
+            u'title': u'youtube-dl test video',
         },
     }, {
-        'note': 'Suicide/self-harm search warning',
-        'url': 'ytsearch1:i hate myself and i wanna die',
-        'playlist_count': 1,
-        'info_dict': {
-            'id': 'i hate myself and i wanna die',
-            'title': 'i hate myself and i wanna die',
+        u'note': u'Suicide/self-harm search warning',
+        u'url': u'ytsearch1:i hate myself and i wanna die',
+        u'playlist_count': 1,
+        u'info_dict': {
+            u'id': u'i hate myself and i wanna die',
+            u'title': u'i hate myself and i wanna die',
         },
     }]
 
 
 class YoutubeSearchDateIE(YoutubeTabBaseInfoExtractor, SearchInfoExtractor):
-    IE_NAME = YoutubeSearchIE.IE_NAME + ':date'
-    _SEARCH_KEY = 'ytsearchdate'
-    IE_DESC = 'YouTube search, newest videos first'
-    _SEARCH_PARAMS = 'CAISAhAB8AEB'  # Videos only, sorted by date
+    IE_NAME = YoutubeSearchIE.IE_NAME + u':date'
+    _SEARCH_KEY = u'ytsearchdate'
+    IE_DESC = u'YouTube search, newest videos first'
+    _SEARCH_PARAMS = u'CAISAhAB8AEB'  # Videos only, sorted by date
     _TESTS = [{
-        'url': 'ytsearchdate5:youtube-dl test video',
-        'playlist_count': 5,
-        'info_dict': {
-            'id': 'youtube-dl test video',
-            'title': 'youtube-dl test video',
+        u'url': u'ytsearchdate5:youtube-dl test video',
+        u'playlist_count': 5,
+        u'info_dict': {
+            u'id': u'youtube-dl test video',
+            u'title': u'youtube-dl test video',
         },
     }]
 
 
 class YoutubeSearchURLIE(YoutubeTabBaseInfoExtractor):
-    IE_DESC = 'YouTube search URLs with sorting and filter support'
-    IE_NAME = YoutubeSearchIE.IE_NAME + '_url'
-    _VALID_URL = r'https?://(?:www\.)?youtube\.com/(?:results|search)\?([^#]+&)?(?:search_query|q)=(?:[^&]+)(?:[&#]|$)'
+    IE_DESC = u'YouTube search URLs with sorting and filter support'
+    IE_NAME = YoutubeSearchIE.IE_NAME + u'_url'
+    _VALID_URL = ur'https?://(?:www\.)?youtube\.com/(?:results|search)\?([^#]+&)?(?:search_query|q)=(?:[^&]+)(?:[&#]|$)'
     _TESTS = [{
-        'url': 'https://www.youtube.com/results?baz=bar&search_query=youtube-dl+test+video&filters=video&lclk=video',
-        'playlist_mincount': 5,
-        'info_dict': {
-            'id': 'youtube-dl test video',
-            'title': 'youtube-dl test video',
+        u'url': u'https://www.youtube.com/results?baz=bar&search_query=youtube-dl+test+video&filters=video&lclk=video',
+        u'playlist_mincount': 5,
+        u'info_dict': {
+            u'id': u'youtube-dl test video',
+            u'title': u'youtube-dl test video',
         },
     }, {
-        'url': 'https://www.youtube.com/results?search_query=python&sp=EgIQAg%253D%253D',
-        'playlist_mincount': 5,
-        'info_dict': {
-            'id': 'python',
-            'title': 'python',
+        u'url': u'https://www.youtube.com/results?search_query=python&sp=EgIQAg%253D%253D',
+        u'playlist_mincount': 5,
+        u'info_dict': {
+            u'id': u'python',
+            u'title': u'python',
         },
     }, {
-        'url': 'https://www.youtube.com/results?search_query=%23cats',
-        'playlist_mincount': 1,
-        'info_dict': {
-            'id': '#cats',
-            'title': '#cats',
+        u'url': u'https://www.youtube.com/results?search_query=%23cats',
+        u'playlist_mincount': 1,
+        u'info_dict': {
+            u'id': u'#cats',
+            u'title': u'#cats',
             # The test suite does not have support for nested playlists
             # 'entries': [{
             #     'url': r're:https://(www\.)?youtube\.com/hashtag/cats',
@@ -77,93 +77,93 @@ class YoutubeSearchURLIE(YoutubeTabBaseInfoExtractor):
         },
     }, {
         # Channel results
-        'url': 'https://www.youtube.com/results?search_query=kurzgesagt&sp=EgIQAg%253D%253D',
-        'info_dict': {
-            'id': 'kurzgesagt',
-            'title': 'kurzgesagt',
+        u'url': u'https://www.youtube.com/results?search_query=kurzgesagt&sp=EgIQAg%253D%253D',
+        u'info_dict': {
+            u'id': u'kurzgesagt',
+            u'title': u'kurzgesagt',
         },
-        'playlist': [{
-            'info_dict': {
-                '_type': 'url',
-                'id': 'UCsXVk37bltHxD1rDPwtNM8Q',
-                'url': 'https://www.youtube.com/channel/UCsXVk37bltHxD1rDPwtNM8Q',
-                'ie_key': 'YoutubeTab',
-                'channel': 'Kurzgesagt – In a Nutshell',
-                'description': 'md5:4ae48dfa9505ffc307dad26342d06bfc',
-                'title': 'Kurzgesagt – In a Nutshell',
-                'channel_id': 'UCsXVk37bltHxD1rDPwtNM8Q',
+        u'playlist': [{
+            u'info_dict': {
+                u'_type': u'url',
+                u'id': u'UCsXVk37bltHxD1rDPwtNM8Q',
+                u'url': u'https://www.youtube.com/channel/UCsXVk37bltHxD1rDPwtNM8Q',
+                u'ie_key': u'YoutubeTab',
+                u'channel': u'Kurzgesagt – In a Nutshell',
+                u'description': u'md5:4ae48dfa9505ffc307dad26342d06bfc',
+                u'title': u'Kurzgesagt – In a Nutshell',
+                u'channel_id': u'UCsXVk37bltHxD1rDPwtNM8Q',
                 # No longer available for search as it is set to the handle.
                 # 'playlist_count': int,
-                'channel_url': 'https://www.youtube.com/channel/UCsXVk37bltHxD1rDPwtNM8Q',
-                'thumbnails': list,
-                'uploader_id': '@kurzgesagt',
-                'uploader_url': 'https://www.youtube.com/@kurzgesagt',
-                'uploader': 'Kurzgesagt – In a Nutshell',
-                'channel_is_verified': True,
-                'channel_follower_count': int,
+                u'channel_url': u'https://www.youtube.com/channel/UCsXVk37bltHxD1rDPwtNM8Q',
+                u'thumbnails': list,
+                u'uploader_id': u'@kurzgesagt',
+                u'uploader_url': u'https://www.youtube.com/@kurzgesagt',
+                u'uploader': u'Kurzgesagt – In a Nutshell',
+                u'channel_is_verified': True,
+                u'channel_follower_count': int,
             },
         }],
-        'params': {'extract_flat': True, 'playlist_items': '1'},
-        'playlist_mincount': 1,
+        u'params': {u'extract_flat': True, u'playlist_items': u'1'},
+        u'playlist_mincount': 1,
     }, {
-        'url': 'https://www.youtube.com/results?q=test&sp=EgQIBBgB',
-        'only_matching': True,
+        u'url': u'https://www.youtube.com/results?q=test&sp=EgQIBBgB',
+        u'only_matching': True,
     }]
 
     def _real_extract(self, url):
         qs = parse_qs(url)
-        query = (qs.get('search_query') or qs.get('q'))[0]
-        return self.playlist_result(self._search_results(query, qs.get('sp', (None,))[0]), query, query)
+        query = (qs.get(u'search_query') or qs.get(u'q'))[0]
+        return self.playlist_result(self._search_results(query, qs.get(u'sp', (None,))[0]), query, query)
 
 
 class YoutubeMusicSearchURLIE(YoutubeTabBaseInfoExtractor):
-    IE_DESC = 'YouTube music search URLs with selectable sections, e.g. #songs'
-    IE_NAME = 'youtube:music:search_url'
-    _VALID_URL = r'https?://music\.youtube\.com/search\?([^#]+&)?(?:search_query|q)=(?:[^&]+)(?:[&#]|$)'
+    IE_DESC = u'YouTube music search URLs with selectable sections, e.g. #songs'
+    IE_NAME = u'youtube:music:search_url'
+    _VALID_URL = ur'https?://music\.youtube\.com/search\?([^#]+&)?(?:search_query|q)=(?:[^&]+)(?:[&#]|$)'
     _TESTS = [{
-        'url': 'https://music.youtube.com/search?q=royalty+free+music',
-        'playlist_count': 16,
-        'info_dict': {
-            'id': 'royalty free music',
-            'title': 'royalty free music',
+        u'url': u'https://music.youtube.com/search?q=royalty+free+music',
+        u'playlist_count': 16,
+        u'info_dict': {
+            u'id': u'royalty free music',
+            u'title': u'royalty free music',
         },
     }, {
-        'url': 'https://music.youtube.com/search?q=royalty+free+music&sp=EgWKAQIIAWoKEAoQAxAEEAkQBQ%3D%3D',
-        'playlist_mincount': 30,
-        'info_dict': {
-            'id': 'royalty free music - songs',
-            'title': 'royalty free music - songs',
+        u'url': u'https://music.youtube.com/search?q=royalty+free+music&sp=EgWKAQIIAWoKEAoQAxAEEAkQBQ%3D%3D',
+        u'playlist_mincount': 30,
+        u'info_dict': {
+            u'id': u'royalty free music - songs',
+            u'title': u'royalty free music - songs',
         },
-        'params': {'extract_flat': 'in_playlist'},
+        u'params': {u'extract_flat': u'in_playlist'},
     }, {
-        'url': 'https://music.youtube.com/search?q=royalty+free+music#community+playlists',
-        'playlist_mincount': 30,
-        'info_dict': {
-            'id': 'royalty free music - community playlists',
-            'title': 'royalty free music - community playlists',
+        u'url': u'https://music.youtube.com/search?q=royalty+free+music#community+playlists',
+        u'playlist_mincount': 30,
+        u'info_dict': {
+            u'id': u'royalty free music - community playlists',
+            u'title': u'royalty free music - community playlists',
         },
-        'params': {'extract_flat': 'in_playlist'},
+        u'params': {u'extract_flat': u'in_playlist'},
     }]
 
     _SECTIONS = {
-        'albums': 'EgWKAQIYAWoKEAoQAxAEEAkQBQ==',
-        'artists': 'EgWKAQIgAWoKEAoQAxAEEAkQBQ==',
-        'community playlists': 'EgeKAQQoAEABagoQChADEAQQCRAF',
-        'featured playlists': 'EgeKAQQoADgBagwQAxAJEAQQDhAKEAU==',
-        'songs': 'EgWKAQIIAWoKEAoQAxAEEAkQBQ==',
-        'videos': 'EgWKAQIQAWoKEAoQAxAEEAkQBQ==',
+        u'albums': u'EgWKAQIYAWoKEAoQAxAEEAkQBQ==',
+        u'artists': u'EgWKAQIgAWoKEAoQAxAEEAkQBQ==',
+        u'community playlists': u'EgeKAQQoAEABagoQChADEAQQCRAF',
+        u'featured playlists': u'EgeKAQQoADgBagwQAxAJEAQQDhAKEAU==',
+        u'songs': u'EgWKAQIIAWoKEAoQAxAEEAkQBQ==',
+        u'videos': u'EgWKAQIQAWoKEAoQAxAEEAkQBQ==',
     }
 
     def _real_extract(self, url):
         qs = parse_qs(url)
-        query = (qs.get('search_query') or qs.get('q'))[0]
-        params = qs.get('sp', (None,))[0]
+        query = (qs.get(u'search_query') or qs.get(u'q'))[0]
+        params = qs.get(u'sp', (None,))[0]
         if params:
-            section = next((k for k, v in self._SECTIONS.items() if v == params), params)
+            section = (k for k, v in self._SECTIONS.items() if v == params), params.next()
         else:
-            section = urllib_parse.unquote_plus((url.split('#') + [''])[1]).lower()
+            section = urllib_parse.unquote_plus((url.split(u'#') + [u''])[1]).lower()
             params = self._SECTIONS.get(section)
             if not params:
                 section = None
-        title = join_nonempty(query, section, delim=' - ')
-        return self.playlist_result(self._search_results(query, params, default_client='web_music'), title, title)
+        title = join_nonempty(query, section, delim=u' - ')
+        return self.playlist_result(self._search_results(query, params, default_client=u'web_music'), title, title)

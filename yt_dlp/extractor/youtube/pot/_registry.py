@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from yt_dlp.globals import Indirect
 
 _pot_providers = Indirect({})

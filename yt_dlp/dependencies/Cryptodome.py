@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from __future__ import unicode_literals
 from ..compat.compat_utils import passthrough_module
 
@@ -7,33 +8,33 @@ except ImportError:
     try:
         import Crypto as _parent
     except (ImportError, SyntaxError):  # Old Crypto gives SyntaxError in newer Python
-        _parent = passthrough_module(__name__, 'no_Cryptodome')
+        _parent = passthrough_module(__name__, u'no_Cryptodome')
         __bool__ = lambda: False
 
 del passthrough_module
 
-__version__ = ''
+__version__ = u''
 AES = PKCS1_v1_5 = Blowfish = PKCS1_OAEP = SHA1 = CMAC = RSA = None
 try:
-    if _parent.__name__ == 'Cryptodome':
+    if _parent.__name__ == u'Cryptodome':
         from Cryptodome import __version__
         from Cryptodome.Cipher import AES, PKCS1_OAEP, Blowfish, PKCS1_v1_5
         from Cryptodome.Hash import CMAC, SHA1
         from Cryptodome.PublicKey import RSA
-    elif _parent.__name__ == 'Crypto':
+    elif _parent.__name__ == u'Crypto':
         from Crypto import __version__
         from Crypto.Cipher import AES, PKCS1_OAEP, Blowfish, PKCS1_v1_5  # noqa: F401
         from Crypto.Hash import CMAC, SHA1  # noqa: F401
         from Crypto.PublicKey import RSA  # noqa: F401
 except (ImportError, OSError):
-    __version__ = 'broken {0}'.format(__version__).strip()
+    __version__ = u'broken {0}'.format(__version__).strip()
 
 
 _yt_dlp__identifier = _parent.__name__
-if AES and _yt_dlp__identifier == 'Crypto':
+if AES and _yt_dlp__identifier == u'Crypto':
     try:
         # In pycrypto, mode defaults to ECB. See:
         # https://www.pycryptodome.org/en/latest/src/vs_pycrypto.html#:~:text=not%20have%20ECB%20as%20default%20mode
-        AES.new('abcdefghijklmnop')
+        AES.new(u'abcdefghijklmnop')
     except TypeError:
-        _yt_dlp__identifier = 'pycrypto'
+        _yt_dlp__identifier = u'pycrypto'

@@ -36,7 +36,7 @@ if curl_cffi is None:
 curl_cffi_version = tuple(imap(int, re.split(ur'[^\d]+', curl_cffi.__version__)[:3]))
 
 if curl_cffi_version != (0, 5, 10) and not (0, 10) <= curl_cffi_version < (0, 14):
-    curl_cffi._yt_dlp__version = '%s (unsupported)' % curl_cffi.__version__
+    curl_cffi._yt_dlp__version = u'%s (unsupported)' % curl_cffi.__version__
     raise ImportError(u'Only curl_cffi versions 0.5.10, 0.10.x, 0.11.x, 0.12.x, 0.13.x are supported')
 
 import curl_cffi.requests
@@ -47,7 +47,7 @@ class CurlCFFIResponseReader(io.IOBase):
     def __init__(self, response):
         self._response = response
         self._iterator = response.iter_content()
-        self._buffer = b''
+        self._buffer = ''
         self.bytes_read = 0
 
     def readable(self):
@@ -65,7 +65,7 @@ class CurlCFFIResponseReader(io.IOBase):
                     break
             if size is None:
                 ret = self._buffer
-                self._buffer = b''
+                self._buffer = ''
             else:
                 ret = self._buffer[:size]
                 self._buffer = self._buffer[size:]
@@ -79,7 +79,7 @@ class CurlCFFIResponseReader(io.IOBase):
     def close(self):
         if not self.closed:
             self._response.close()
-            self._buffer = b''
+            self._buffer = ''
         super(CurlCFFIResponseReader, self).close()
 
 
@@ -300,6 +300,6 @@ CurlCFFIRH = register_rh(CurlCFFIRH)
 
 @register_preference(CurlCFFIRH)
 def curl_cffi_preference(rh, request):
-    if request.extensions.get('impersonate'):
+    if request.extensions.get(u'impersonate'):
         return 2
     return -1

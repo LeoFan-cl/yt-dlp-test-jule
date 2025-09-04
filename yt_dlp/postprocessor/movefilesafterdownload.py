@@ -30,16 +30,16 @@ class MoveFilesAfterDownloadPP(PostProcessor):
                 continue
 
             if not os.path.exists(oldfile):
-                self.report_warning('File "%s" cannot be found' % oldfile)
+                self.report_warning(u'File "%s" cannot be found' % oldfile)
                 continue
             if os.path.exists(newfile):
                 if self.get_param(u'overwrites', True):
-                    self.report_warning('Replacing existing file "%s"' % newfile)
+                    self.report_warning(u'Replacing existing file "%s"' % newfile)
                     os.remove(newfile)
                 else:
-                    raise PostProcessingError('Destination file "%s" already exists' % newfile)
+                    raise PostProcessingError(u'Destination file "%s" already exists' % newfile)
 
-            self.to_screen('Moving file "%s" to "%s"' % (oldfile, newfile))
+            self.to_screen(u'Moving file "%s" to "%s"' % (oldfile, newfile))
             shutil.move(oldfile, newfile)  # os.rename cannot move between volumes
 
         info[u'filepath'] = finalpath

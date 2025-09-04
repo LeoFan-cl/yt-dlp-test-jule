@@ -44,36 +44,36 @@ class EnhancedModule(types.ModuleType):
         return ret.fget() if isinstance(ret, property) else ret
 
 
-def passthrough_module(parent, child, allowed_attributes=(..., ), *, callback=lambda _: None):
+def passthrough_module(parent, child, allowed_attributes=(None, ), callback=lambda _: None):
     """Passthrough parent module into a child module, creating the parent if necessary"""
     def __getattr__(attr):
         if _is_package(parent):
             with contextlib.suppress(ModuleNotFoundError):
-                return importlib.import_module(f'.{attr}', parent.__name__)
+                return importlib.import_module('.%s' % attr, parent.__name__)
 
         ret = from_child(attr)
         if ret is _NO_ATTRIBUTE:
-            raise AttributeError(f'module {parent.__name__} has no attribute {attr}')
+            raise AttributeError('module %s has no attribute %s' % (parent.__name__, attr))
         callback(attr)
         return ret
 
-    @functools.cache
+    # @functools.cache
     def from_child(attr):
-        nonlocal child
+        child_ref = [child]
         if attr not in allowed_attributes:
-            if ... not in allowed_attributes or _is_dunder(attr):
+            if None not in allowed_attributes or _is_dunder(attr):
                 return _NO_ATTRIBUTE
 
-        if isinstance(child, str):
-            child = importlib.import_module(child, parent.__name__)
+        if isinstance(child_ref[0], str):
+            child_ref[0] = importlib.import_module(child_ref[0], parent.__name__)
 
-        if _is_package(child):
+        if _is_package(child_ref[0]):
             with contextlib.suppress(ImportError):
-                return passthrough_module(f'{parent.__name__}.{attr}',
-                                          importlib.import_module(f'.{attr}', child.__name__))
+                return passthrough_module('%s.%s' % (parent.__name__, attr),
+                                          importlib.import_module('.%s' % attr, child_ref[0].__name__))
 
         with contextlib.suppress(AttributeError):
-            return getattr(child, attr)
+            return getattr(child_ref[0], attr)
 
         return _NO_ATTRIBUTE
 

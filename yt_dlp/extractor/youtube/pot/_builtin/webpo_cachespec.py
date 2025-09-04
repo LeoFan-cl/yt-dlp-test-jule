@@ -15,13 +15,12 @@ from yt_dlp.extractor.youtube.pot.utils import ContentBindingType, get_webpo_con
 from yt_dlp.utils import traverse_obj
 
 
-@register_spec
 class WebPoPCSP(PoTokenCacheSpecProvider, BuiltinIEContentProvider):
-    PROVIDER_NAME = 'webpo'
+    PROVIDER_NAME = u'webpo'
 
     def generate_cache_spec(self, request):
         bind_to_visitor_id = self._configuration_arg(
-            'bind_to_visitor_id', default=['true'])[0] == 'true'
+            u'bind_to_visitor_id', default=[u'true'])[0] == u'true'
 
         content_binding, content_binding_type = get_webpo_content_binding(
             request, bind_to_visitor_id=bind_to_visitor_id)
@@ -35,15 +34,17 @@ class WebPoPCSP(PoTokenCacheSpecProvider, BuiltinIEContentProvider):
 
         return PoTokenCacheSpec(
             key_bindings={
-                't': 'webpo',
-                'cb': content_binding,
-                'cbt': content_binding_type.value,
-                'ip': traverse_obj(request.innertube_context, ('client', 'remoteHost')),
-                'sa': request.request_source_address,
-                'px': request.request_proxy,
+                u't': u'webpo',
+                u'cb': content_binding,
+                u'cbt': content_binding_type.value,
+                u'ip': traverse_obj(request.innertube_context, (u'client', u'remoteHost')),
+                u'sa': request.request_source_address,
+                u'px': request.request_proxy,
             },
             # Integrity token response usually states it has a ttl of 12 hours (43200 seconds).
             # We will default to 6 hours to be safe.
             default_ttl=21600,
             write_policy=write_policy,
         )
+
+WebPoPCSP = register_spec(WebPoPCSP)

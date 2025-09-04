@@ -34,15 +34,15 @@ from ...compat._legacy import compat_urllib_parse as urllib_parse
 
 
 class _PoTokenContext(object):
-    PLAYER = 'player'
-    GVS = 'gvs'
-    SUBS = 'subs'
+    PLAYER = u'player'
+    GVS = u'gvs'
+    SUBS = u'subs'
 
 
 class StreamingProtocol(object):
-    HTTPS = 'https'
-    DASH = 'dash'
-    HLS = 'hls'
+    HTTPS = u'https'
+    DASH = u'dash'
+    HLS = u'hls'
 
 
 class BasePoTokenPolicy(object):
@@ -67,7 +67,7 @@ class SubsPoTokenPolicy(BasePoTokenPolicy):
 
 
 WEB_PO_TOKEN_POLICIES = {
-    'GVS_PO_TOKEN_POLICY': {
+    u'GVS_PO_TOKEN_POLICY': {
         StreamingProtocol.HTTPS: GvsPoTokenPolicy(
             required=True,
             recommended=True,
@@ -85,53 +85,53 @@ WEB_PO_TOKEN_POLICIES = {
             recommended=True,
         ),
     },
-    'PLAYER_PO_TOKEN_POLICY': PlayerPoTokenPolicy(required=False),
-    'SUBS_PO_TOKEN_POLICY': SubsPoTokenPolicy(required=False),
+    u'PLAYER_PO_TOKEN_POLICY': PlayerPoTokenPolicy(required=False),
+    u'SUBS_PO_TOKEN_POLICY': SubsPoTokenPolicy(required=False),
 }
 
 # any clients starting with _ cannot be explicitly requested by the user
 INNERTUBE_CLIENTS = {
-    'web': {
-        'INNERTUBE_CONTEXT': {
-            'client': {
-                'clientName': 'WEB',
-                'clientVersion': '2.20250312.04.00',
+    u'web': {
+        u'INNERTUBE_CONTEXT': {
+            u'client': {
+                u'clientName': u'WEB',
+                u'clientVersion': u'2.20250312.04.00',
             },
         },
-        'INNERTUBE_CONTEXT_CLIENT_NAME': 1,
-        'SUPPORTS_COOKIES': True,
+        u'INNERTUBE_CONTEXT_CLIENT_NAME': 1,
+        u'SUPPORTS_COOKIES': True,
     },
-    'web_safari': {
-        'INNERTUBE_CONTEXT': {
-            'client': {
-                'clientName': 'WEB',
-                'clientVersion': '2.20250312.04.00',
-                'userAgent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Safari/605.1.15,gzip(gfe)',
+    u'web_safari': {
+        u'INNERTUBE_CONTEXT': {
+            u'client': {
+                u'clientName': u'WEB',
+                u'clientVersion': u'2.20250312.04.00',
+                u'userAgent': u'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Safari/605.1.15,gzip(gfe)',
             },
         },
-        'INNERTUBE_CONTEXT_CLIENT_NAME': 1,
-        'SUPPORTS_COOKIES': True,
+        u'INNERTUBE_CONTEXT_CLIENT_NAME': 1,
+        u'SUPPORTS_COOKIES': True,
     },
-    'web_embedded': {
-        'INNERTUBE_CONTEXT': {
-            'client': {
-                'clientName': 'WEB_EMBEDDED_PLAYER',
-                'clientVersion': '1.20250310.01.00',
+    u'web_embedded': {
+        u'INNERTUBE_CONTEXT': {
+            u'client': {
+                u'clientName': u'WEB_EMBEDDED_PLAYER',
+                u'clientVersion': u'1.20250310.01.00',
             },
         },
-        'INNERTUBE_CONTEXT_CLIENT_NAME': 56,
-        'SUPPORTS_COOKIES': True,
+        u'INNERTUBE_CONTEXT_CLIENT_NAME': 56,
+        u'SUPPORTS_COOKIES': True,
     },
-    'web_music': {
-        'INNERTUBE_HOST': 'music.youtube.com',
-        'INNERTUBE_CONTEXT': {
-            'client': {
-                'clientName': 'WEB_REMIX',
-                'clientVersion': '1.20250310.01.00',
+    u'web_music': {
+        u'INNERTUBE_HOST': u'music.youtube.com',
+        u'INNERTUBE_CONTEXT': {
+            u'client': {
+                u'clientName': u'WEB_REMIX',
+                u'clientVersion': u'1.20250310.01.00',
             },
         },
-        'INNERTUBE_CONTEXT_CLIENT_NAME': 67,
-        'GVS_PO_TOKEN_POLICY': {
+        u'INNERTUBE_CONTEXT_CLIENT_NAME': 67,
+        u'GVS_PO_TOKEN_POLICY': {
             StreamingProtocol.HTTPS: GvsPoTokenPolicy(
                 required=True,
                 recommended=True,
@@ -149,17 +149,17 @@ INNERTUBE_CLIENTS = {
                 recommended=True,
             ),
         },
-        'SUPPORTS_COOKIES': True,
+        u'SUPPORTS_COOKIES': True,
     },
-    'web_creator': {
-        'INNERTUBE_CONTEXT': {
-            'client': {
-                'clientName': 'WEB_CREATOR',
-                'clientVersion': '1.20250312.03.01',
+    u'web_creator': {
+        u'INNERTUBE_CONTEXT': {
+            u'client': {
+                u'clientName': u'WEB_CREATOR',
+                u'clientVersion': u'1.20250312.03.01',
             },
         },
-        'INNERTUBE_CONTEXT_CLIENT_NAME': 62,
-        'GVS_PO_TOKEN_POLICY': {
+        u'INNERTUBE_CONTEXT_CLIENT_NAME': 62,
+        u'GVS_PO_TOKEN_POLICY': {
             StreamingProtocol.HTTPS: GvsPoTokenPolicy(
                 required=True,
                 recommended=True,
@@ -177,23 +177,23 @@ INNERTUBE_CLIENTS = {
                 recommended=True,
             ),
         },
-        'REQUIRE_AUTH': True,
-        'SUPPORTS_COOKIES': True,
+        u'REQUIRE_AUTH': True,
+        u'SUPPORTS_COOKIES': True,
     },
-    'android': {
-        'INNERTUBE_CONTEXT': {
-            'client': {
-                'clientName': 'ANDROID',
-                'clientVersion': '20.10.38',
-                'androidSdkVersion': 30,
-                'userAgent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
-                'osName': 'Android',
-                'osVersion': '11',
+    u'android': {
+        u'INNERTUBE_CONTEXT': {
+            u'client': {
+                u'clientName': u'ANDROID',
+                u'clientVersion': u'20.10.38',
+                u'androidSdkVersion': 30,
+                u'userAgent': u'com.google.android.youtube/20.10.38 (Linux; U; Android 11) gzip',
+                u'osName': u'Android',
+                u'osVersion': u'11',
             },
         },
-        'INNERTUBE_CONTEXT_CLIENT_NAME': 3,
-        'REQUIRE_JS_PLAYER': False,
-        'GVS_PO_TOKEN_POLICY': {
+        u'INNERTUBE_CONTEXT_CLIENT_NAME': 3,
+        u'REQUIRE_JS_PLAYER': False,
+        u'GVS_PO_TOKEN_POLICY': {
             StreamingProtocol.HTTPS: GvsPoTokenPolicy(
                 required=True,
                 recommended=True,
@@ -210,38 +210,38 @@ INNERTUBE_CLIENTS = {
                 not_required_with_player_token=True,
             ),
         },
-        'PLAYER_PO_TOKEN_POLICY': PlayerPoTokenPolicy(required=False, recommended=True),
+        u'PLAYER_PO_TOKEN_POLICY': PlayerPoTokenPolicy(required=False, recommended=True),
     },
-    'android_vr': {
-        'INNERTUBE_CONTEXT': {
-            'client': {
-                'clientName': 'ANDROID_VR',
-                'clientVersion': '1.62.27',
-                'deviceMake': 'Oculus',
-                'deviceModel': 'Quest 3',
-                'androidSdkVersion': 32,
-                'userAgent': 'com.google.android.apps.youtube.vr.oculus/1.62.27 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip',
-                'osName': 'Android',
-                'osVersion': '12L',
+    u'android_vr': {
+        u'INNERTUBE_CONTEXT': {
+            u'client': {
+                u'clientName': u'ANDROID_VR',
+                u'clientVersion': u'1.62.27',
+                u'deviceMake': u'Oculus',
+                u'deviceModel': u'Quest 3',
+                u'androidSdkVersion': 32,
+                u'userAgent': u'com.google.android.apps.youtube.vr.oculus/1.62.27 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip',
+                u'osName': u'Android',
+                u'osVersion': u'12L',
             },
         },
-        'INNERTUBE_CONTEXT_CLIENT_NAME': 28,
-        'REQUIRE_JS_PLAYER': False,
+        u'INNERTUBE_CONTEXT_CLIENT_NAME': 28,
+        u'REQUIRE_JS_PLAYER': False,
     },
-    'ios': {
-        'INNERTUBE_CONTEXT': {
-            'client': {
-                'clientName': 'IOS',
-                'clientVersion': '20.10.4',
-                'deviceMake': 'Apple',
-                'deviceModel': 'iPhone16,2',
-                'userAgent': 'com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)',
-                'osName': 'iPhone',
-                'osVersion': '18.3.2.22D82',
+    u'ios': {
+        u'INNERTUBE_CONTEXT': {
+            u'client': {
+                u'clientName': u'IOS',
+                u'clientVersion': u'20.10.4',
+                u'deviceMake': u'Apple',
+                u'deviceModel': u'iPhone16,2',
+                u'userAgent': u'com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)',
+                u'osName': u'iPhone',
+                u'osVersion': u'18.3.2.22D82',
             },
         },
-        'INNERTUBE_CONTEXT_CLIENT_NAME': 5,
-        'GVS_PO_TOKEN_POLICY': {
+        u'INNERTUBE_CONTEXT_CLIENT_NAME': 5,
+        u'GVS_PO_TOKEN_POLICY': {
             StreamingProtocol.HTTPS: GvsPoTokenPolicy(
                 required=True,
                 recommended=True,
@@ -253,19 +253,19 @@ INNERTUBE_CLIENTS = {
                 not_required_with_player_token=True,
             ),
         },
-        'PLAYER_PO_TOKEN_POLICY': PlayerPoTokenPolicy(required=False, recommended=True),
-        'REQUIRE_JS_PLAYER': False,
+        u'PLAYER_PO_TOKEN_POLICY': PlayerPoTokenPolicy(required=False, recommended=True),
+        u'REQUIRE_JS_PLAYER': False,
     },
-    'mweb': {
-        'INNERTUBE_CONTEXT': {
-            'client': {
-                'clientName': 'MWEB',
-                'clientVersion': '2.20250311.03.00',
-                'userAgent': 'Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)',
+    u'mweb': {
+        u'INNERTUBE_CONTEXT': {
+            u'client': {
+                u'clientName': u'MWEB',
+                u'clientVersion': u'2.20250311.03.00',
+                u'userAgent': u'Mozilla/5.0 (iPad; CPU OS 16_7_10 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1,gzip(gfe)',
             },
         },
-        'INNERTUBE_CONTEXT_CLIENT_NAME': 2,
-        'GVS_PO_TOKEN_POLICY': {
+        u'INNERTUBE_CONTEXT_CLIENT_NAME': 2,
+        u'GVS_PO_TOKEN_POLICY': {
             StreamingProtocol.HTTPS: GvsPoTokenPolicy(
                 required=True,
                 recommended=True,
@@ -283,38 +283,38 @@ INNERTUBE_CLIENTS = {
                 recommended=True,
             ),
         },
-        'SUPPORTS_COOKIES': True,
+        u'SUPPORTS_COOKIES': True,
     },
-    'tv': {
-        'INNERTUBE_CONTEXT': {
-            'client': {
-                'clientName': 'TVHTML5',
-                'clientVersion': '7.20250312.16.00',
-                'userAgent': 'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version',
+    u'tv': {
+        u'INNERTUBE_CONTEXT': {
+            u'client': {
+                u'clientName': u'TVHTML5',
+                u'clientVersion': u'7.20250312.16.00',
+                u'userAgent': u'Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version',
             },
         },
-        'INNERTUBE_CONTEXT_CLIENT_NAME': 7,
-        'SUPPORTS_COOKIES': True,
+        u'INNERTUBE_CONTEXT_CLIENT_NAME': 7,
+        u'SUPPORTS_COOKIES': True,
     },
-    'tv_simply': {
-        'INNERTUBE_CONTEXT': {
-            'client': {
-                'clientName': 'TVHTML5_SIMPLY',
-                'clientVersion': '1.0',
+    u'tv_simply': {
+        u'INNERTUBE_CONTEXT': {
+            u'client': {
+                u'clientName': u'TVHTML5_SIMPLY',
+                u'clientVersion': u'1.0',
             },
         },
-        'INNERTUBE_CONTEXT_CLIENT_NAME': 75,
+        u'INNERTUBE_CONTEXT_CLIENT_NAME': 75,
     },
-    'tv_embedded': {
-        'INNERTUBE_CONTEXT': {
-            'client': {
-                'clientName': 'TVHTML5_SIMPLY_EMBEDDED_PLAYER',
-                'clientVersion': '2.0',
+    u'tv_embedded': {
+        u'INNERTUBE_CONTEXT': {
+            u'client': {
+                u'clientName': u'TVHTML5_SIMPLY_EMBEDDED_PLAYER',
+                u'clientVersion': u'2.0',
             },
         },
-        'INNERTUBE_CONTEXT_CLIENT_NAME': 85,
-        'REQUIRE_AUTH': True,
-        'SUPPORTS_COOKIES': True,
+        u'INNERTUBE_CONTEXT_CLIENT_NAME': 85,
+        u'REQUIRE_AUTH': True,
+        u'SUPPORTS_COOKIES': True,
     },
 }
 for client in INNERTUBE_CLIENTS:
@@ -322,49 +322,49 @@ for client in INNERTUBE_CLIENTS:
 
 
 def _split_innertube_client(client_name):
-    parts = client_name.rsplit('.', 1)
+    parts = client_name.rsplit(u'.', 1)
     if len(parts) > 1:
         variant, base = parts
         return variant, base, variant
-    parts = client_name.split('_', 1)
+    parts = client_name.split(u'_', 1)
     base = parts[0]
     variant = parts[1] if len(parts) > 1 else None
     return client_name, base, variant
 
 
 def short_client_name(client_name):
-    main, parts = (_split_innertube_client(client_name)[0].split('_', 1) + [[]])[:2]
-    return join_nonempty(main[:4], ''.join(x[0] for x in parts)).upper()
+    main, parts = (_split_innertube_client(client_name)[0].split(u'_', 1) + [[]])[:2]
+    return join_nonempty(main[:4], u''.join(x[0] for x in parts)).upper()
 
 
 def build_innertube_clients():
     THIRD_PARTY = {
-        'embedUrl': 'https://www.youtube.com/',
+        u'embedUrl': u'https://www.youtube.com/',
     }
-    BASE_CLIENTS = ('ios', 'web', 'tv', 'mweb', 'android')
+    BASE_CLIENTS = (u'ios', u'web', u'tv', u'mweb', u'android')
     priority = qualities(BASE_CLIENTS[::-1])
 
     for client, ytcfg in INNERTUBE_CLIENTS.items():
-        ytcfg.setdefault('INNERTUBE_HOST', 'www.youtube.com')
-        ytcfg.setdefault('REQUIRE_JS_PLAYER', True)
-        ytcfg.setdefault('GVS_PO_TOKEN_POLICY', {})
+        ytcfg.setdefault(u'INNERTUBE_HOST', u'www.youtube.com')
+        ytcfg.setdefault(u'REQUIRE_JS_PLAYER', True)
+        ytcfg.setdefault(u'GVS_PO_TOKEN_POLICY', {})
         for protocol in (StreamingProtocol.HTTPS, StreamingProtocol.DASH, StreamingProtocol.HLS):
-            ytcfg['GVS_PO_TOKEN_POLICY'].setdefault(protocol, GvsPoTokenPolicy())
-        ytcfg.setdefault('PLAYER_PO_TOKEN_POLICY', PlayerPoTokenPolicy())
-        ytcfg.setdefault('SUBS_PO_TOKEN_POLICY', SubsPoTokenPolicy())
-        ytcfg.setdefault('REQUIRE_AUTH', False)
-        ytcfg.setdefault('SUPPORTS_COOKIES', False)
-        ytcfg.setdefault('PLAYER_PARAMS', None)
-        ytcfg['INNERTUBE_CONTEXT']['client'].setdefault('hl', 'en')
+            ytcfg[u'GVS_PO_TOKEN_POLICY'].setdefault(protocol, GvsPoTokenPolicy())
+        ytcfg.setdefault(u'PLAYER_PO_TOKEN_POLICY', PlayerPoTokenPolicy())
+        ytcfg.setdefault(u'SUBS_PO_TOKEN_POLICY', SubsPoTokenPolicy())
+        ytcfg.setdefault(u'REQUIRE_AUTH', False)
+        ytcfg.setdefault(u'SUPPORTS_COOKIES', False)
+        ytcfg.setdefault(u'PLAYER_PARAMS', None)
+        ytcfg[u'INNERTUBE_CONTEXT'][u'client'].setdefault(u'hl', u'en')
 
         _, base_client, variant = _split_innertube_client(client)
-        ytcfg['priority'] = 10 * priority(base_client)
+        ytcfg[u'priority'] = 10 * priority(base_client)
 
-        if variant == 'embedded':
-            ytcfg['INNERTUBE_CONTEXT']['thirdParty'] = THIRD_PARTY
-            ytcfg['priority'] -= 2
+        if variant == u'embedded':
+            ytcfg[u'INNERTUBE_CONTEXT'][u'thirdParty'] = THIRD_PARTY
+            ytcfg[u'priority'] -= 2
         elif variant:
-            ytcfg['priority'] -= 3
+            ytcfg[u'priority'] -= 3
 
 
 build_innertube_clients()
@@ -380,9 +380,9 @@ class BadgeType(object):
     VERIFIED = 7
 
 
-CONFIGURATION_ARG_KEY = 'youtube'
+CONFIGURATION_ARG_KEY = u'youtube'
 
 
 class YoutubeBaseInfoExtractor(InfoExtractor):
-    """Provide base functions for Youtube extractors"""
+    u"""Provide base functions for Youtube extractors"""
     pass

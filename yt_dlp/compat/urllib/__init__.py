@@ -8,4 +8,6 @@ if sys.version_info[0] == 2:
     from urlparse import *
 else:
     from urllib import *
-    from urllib.parse import *
+    from urlparse import *
+    from urllib2 import *
+    from urllib import *

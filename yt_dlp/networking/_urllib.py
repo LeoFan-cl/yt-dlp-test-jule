@@ -113,14 +113,14 @@ class HTTPHandler(urllib2.AbstractHTTPHandler):
         # See: https://github.com/python/cpython/blob/main/Lib/urllib/request.py#L1367
         host = req.host
         if not host:
-            raise urllib2.URLError('no host given')
+            raise urllib2.URLError(u'no host given')
 
         # `Request.get_method()` is not used since it is not available in Python 2
-        if req.get_method() not in ('GET', 'HEAD'):
-            if 'Content-Length' not in req.headers and 'Transfer-Encoding' not in req.headers:
-                req.headers['Content-Length'] = str(len(req.data or b''))
-        if 'Host' not in req.headers:
-            req.headers['Host'] = host
+        if req.get_method() not in (u'GET', u'HEAD'):
+            if u'Content-Length' not in req.headers and u'Transfer-Encoding' not in req.headers:
+                req.headers[u'Content-Length'] = unicode(len(req.data or ''))
+        if u'Host' not in req.headers:
+            req.headers[u'Host'] = host
 
         # Escape the path component of the URL to satisfy RFC 3986
         # See: https://github.com/python/cpython/issues/91306
@@ -232,7 +232,7 @@ class ProxyHandler(urllib2.BaseHandler):
         self.proxies = proxies
         # Set default handlers
         for scheme in (u'http', u'https', u'ftp'):
-            setattr(self, '%s_open' % scheme, lambda r, meth=self.proxy_open: meth(r))
+            setattr(self, u'%s_open' % scheme, lambda r, meth=self.proxy_open: meth(r))
 
     def proxy_open(self, req):
         proxy = select_proxy(req.get_full_url(), self.proxies)
@@ -324,9 +324,9 @@ class UrllibRH(RequestHandler, InstanceStoreMixin):
     RH_NAME = u'urllib'
 
     def __init__(self, **kwargs):
-        if 'enable_file_urls' in kwargs:
-            enable_file_urls = kwargs['enable_file_urls']
-            del kwargs['enable_file_urls']
+        if u'enable_file_urls' in kwargs:
+            enable_file_urls = kwargs[u'enable_file_urls']
+            del kwargs[u'enable_file_urls']
         else:
             enable_file_urls = False
         super(UrllibRH, self).__init__(**kwargs)

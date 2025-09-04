@@ -18,18 +18,18 @@ try:
 except ImportError:
     pass
 except Exception, e:
-    warnings.warn('Failed to import "requests" request handler: %s' % e + bug_reports_message())
+    warnings.warn(u'Failed to import "requests" request handler: %s' % e + bug_reports_message())
 
 try:
     from . import _websockets
 except ImportError:
     pass
 except Exception, e:
-    warnings.warn('Failed to import "websockets" request handler: %s' % e + bug_reports_message())
+    warnings.warn(u'Failed to import "websockets" request handler: %s' % e + bug_reports_message())
 
 try:
     from . import _curlcffi
 except ImportError:
     pass
 except Exception, e:
-    warnings.warn('Failed to import "curl_cffi" request handler: %s' % e + bug_reports_message())
+    warnings.warn(u'Failed to import "curl_cffi" request handler: %s' % e + bug_reports_message())

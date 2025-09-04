@@ -1,4 +1,5 @@
 # coding: utf-8
+from __future__ import with_statement
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import calendar
@@ -16,24 +17,23 @@ from yt_dlp.extractor.youtube.pot.cache import (
 
 
 def initialize_global_cache(max_size):
-    if _pot_memory_cache.value.get('cache') is None:
-        _pot_memory_cache.value['cache'] = {}
-        _pot_memory_cache.value['lock'] = Lock()
-        _pot_memory_cache.value['max_size'] = max_size
+    if _pot_memory_cache.value.get(u'cache') is None:
+        _pot_memory_cache.value[u'cache'] = {}
+        _pot_memory_cache.value[u'lock'] = Lock()
+        _pot_memory_cache.value[u'max_size'] = max_size
 
-    if _pot_memory_cache.value['max_size'] != max_size:
-        raise ValueError('Cannot change max_size of initialized global memory cache')
+    if _pot_memory_cache.value[u'max_size'] != max_size:
+        raise ValueError(u'Cannot change max_size of initialized global memory cache')
 
     return (
-        _pot_memory_cache.value['cache'],
-        _pot_memory_cache.value['lock'],
-        _pot_memory_cache.value['max_size'],
+        _pot_memory_cache.value[u'cache'],
+        _pot_memory_cache.value[u'lock'],
+        _pot_memory_cache.value[u'max_size'],
     )
 
 
-@register_provider
 class MemoryLRUPCP(PoTokenCacheProvider, BuiltinIEContentProvider):
-    PROVIDER_NAME = 'memory'
+    PROVIDER_NAME = u'memory'
     DEFAULT_CACHE_SIZE = 25
 
     def __init__(
@@ -41,7 +41,7 @@ class MemoryLRUPCP(PoTokenCacheProvider, BuiltinIEContentProvider):
         *args,
         **kwargs
     ):
-        initialize_cache = kwargs.pop('initialize_cache', initialize_global_cache)
+        initialize_cache = kwargs.pop(u'initialize_cache', initialize_global_cache)
         super(MemoryLRUPCP, self).__init__(*args, **kwargs)
         self.cache, self.lock, self.max_size = initialize_cache(self.DEFAULT_CACHE_SIZE)
 
@@ -66,13 +66,15 @@ class MemoryLRUPCP(PoTokenCacheProvider, BuiltinIEContentProvider):
                 self.cache.pop(key)
             self.cache[key] = (value, expires_at)
             if len(self.cache) > self.max_size:
-                oldest_key = next(iter(self.cache))
+                oldest_key = iter(self.cache).next()
                 self.cache.pop(oldest_key)
 
     def delete(self, key):
         with self.lock:
             self.cache.pop(key, None)
 
+
+MemoryLRUPCP = register_provider(MemoryLRUPCP)
 
 @register_preference(MemoryLRUPCP)
 def memorylru_preference(*_, **__):

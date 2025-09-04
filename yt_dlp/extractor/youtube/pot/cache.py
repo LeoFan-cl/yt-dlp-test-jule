@@ -19,12 +19,12 @@ from ...compat._legacy import compat_dataclasses as dataclasses
 
 
 class PoTokenCacheProviderError(IEContentProviderError):
-    """An error occurred while fetching a PO Token"""
+    u"""An error occurred while fetching a PO Token"""
 
 
 class PoTokenCacheProvider(IEContentProvider):
     __metaclass__ = abc.ABCMeta
-    _PROVIDER_KEY_SUFFIX = 'PCP'
+    _PROVIDER_KEY_SUFFIX = u'PCP'
 
     @abc.abstractmethod
     def get(self, key):
@@ -54,19 +54,19 @@ class PoTokenCacheSpec(object):
 
 class PoTokenCacheSpecProvider(IEContentProvider):
     __metaclass__ = abc.ABCMeta
-    _PROVIDER_KEY_SUFFIX = 'PCSP'
+    _PROVIDER_KEY_SUFFIX = u'PCSP'
 
     def is_available(self):
         return True
 
     @abc.abstractmethod
     def generate_cache_spec(self, request):
-        """Generate a cache spec for the given request"""
+        u"""Generate a cache spec for the given request"""
         pass
 
 
 def register_provider(provider):
-    """Register a PoTokenCacheProvider class"""
+    u"""Register a PoTokenCacheProvider class"""
     return register_provider_generic(
         provider=provider,
         base_class=PoTokenCacheProvider,
@@ -75,7 +75,7 @@ def register_provider(provider):
 
 
 def register_spec(provider):
-    """Register a PoTokenCacheSpecProvider class"""
+    u"""Register a PoTokenCacheSpecProvider class"""
     return register_provider_generic(
         provider=provider,
         base_class=PoTokenCacheSpecProvider,
@@ -84,7 +84,7 @@ def register_spec(provider):
 
 
 def register_preference(*providers):
-    """Register a preference for a PoTokenCacheProvider"""
+    u"""Register a preference for a PoTokenCacheProvider"""
     return register_preference_generic(
         PoTokenCacheProvider,
         _pot_cache_provider_preferences.value,

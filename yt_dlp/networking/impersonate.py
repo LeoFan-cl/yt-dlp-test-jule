@@ -14,7 +14,6 @@ from ..utils import join_nonempty
 from ..utils.networking import std_headers, HTTPHeaderDict
 
 
-@total_ordering
 class ImpersonateTarget(object):
     u"""
     A target for browser impersonation.
@@ -53,8 +52,8 @@ class ImpersonateTarget(object):
         return self._os_version
 
     def __setattr__(self, name, value):
-        if hasattr(self, '_initialized'):
-            raise AttributeError("can't set attribute")
+        if hasattr(self, u'_initialized'):
+            raise AttributeError(u"can't set attribute")
         super(ImpersonateTarget, self).__setattr__(name, value)
 
     def __post_init__(self):
@@ -77,7 +76,7 @@ class ImpersonateTarget(object):
         return u'%s:%s' % (join_nonempty(self.client, self.version), join_nonempty(self.os, self.os_version).rstrip(u':'))
 
     def __repr__(self):
-        return "ImpersonateTarget(client=%r, version=%r, os=%r, os_version=%r)" % (
+        return u"ImpersonateTarget(client=%r, version=%r, os=%r, os_version=%r)" % (
             self.client, self.version, self.os, self.os_version)
 
     def __eq__(self, other):
@@ -89,8 +88,8 @@ class ImpersonateTarget(object):
         if not isinstance(other, ImpersonateTarget):
             return NotImplemented
         # None is smaller than any string
-        return (self.client or '', self.version or '', self.os or '', self.os_version or '') < \
-               (other.client or '', other.version or '', other.os or '', other.os_version or '')
+        return (self.client or u'', self.version or u'', self.os or u'', self.os_version or u'') < \
+               (other.client or u'', other.version or u'', other.os or u'', other.os_version or u'')
 
     def __hash__(self):
         return hash((self.client, self.version, self.os, self.os_version))
@@ -102,6 +101,8 @@ class ImpersonateTarget(object):
             raise ValueError(u'Invalid impersonate target "%s"' % target)
         return cls(**mobj.groupdict())
 
+
+ImpersonateTarget = total_ordering(ImpersonateTarget)
 
 class ImpersonateRequestHandler(RequestHandler, ABC):
     u"""
@@ -121,9 +122,9 @@ class ImpersonateRequestHandler(RequestHandler, ABC):
     _SUPPORTED_IMPERSONATE_TARGET_MAP = {}
 
     def __init__(self, **kwargs):
-        if 'impersonate' in kwargs:
-            impersonate = kwargs['impersonate']
-            del kwargs['impersonate']
+        if u'impersonate' in kwargs:
+            impersonate = kwargs[u'impersonate']
+            del kwargs[u'impersonate']
         else:
             impersonate = None
         super(ImpersonateRequestHandler, self).__init__(**kwargs)
@@ -183,7 +184,7 @@ class ImpersonateRequestHandler(RequestHandler, ABC):
         headers = self._merge_headers(request.headers)
         if self._get_request_target(request):
             for k in list(headers.keys()):
-                if k.lower() in ('user-agent', 'accept', 'accept-language', 'accept-encoding', 'sec-ch-ua'):
+                if k.lower() in (u'user-agent', u'accept', u'accept-language', u'accept-encoding', u'sec-ch-ua'):
                     headers.pop(k)
 
         self._prepare_impersonate_headers(request, headers)

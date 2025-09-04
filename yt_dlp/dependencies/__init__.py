@@ -1,6 +1,7 @@
 # flake8: noqa: F401
-"""Imports all optional dependencies for the project.
+u"""Imports all optional dependencies for the project.
 An attribute "_yt_dlp__identifier" may be inserted into the module if it uses an ambiguous namespace"""
+from __future__ import absolute_import
 from __future__ import unicode_literals
 
 try:
@@ -36,10 +37,10 @@ try:
     _SECRETSTORAGE_UNAVAILABLE_REASON = None
 except ImportError:
     _SECRETSTORAGE_UNAVAILABLE_REASON = (
-        'as the `secretstorage` module is not installed. '
-        'Please install by running `python -m pip install secretstorage`')
-except Exception as _err:
-    _SECRETSTORAGE_UNAVAILABLE_REASON = 'as the `secretstorage` module could not be initialized. {0}'.format(_err)
+        u'as the `secretstorage` module is not installed. '
+        u'Please install by running `python -m pip install secretstorage`')
+except Exception, _err:
+    _SECRETSTORAGE_UNAVAILABLE_REASON = u'as the `secretstorage` module could not be initialized. {0}'.format(_err)
 
 
 try:
@@ -72,8 +73,8 @@ try:
 except ImportError:
     xattr = None
 else:
-    if hasattr(xattr, 'set'):  # pyxattr
-        xattr._yt_dlp__identifier = 'pyxattr'
+    if hasattr(xattr, u'set'):  # pyxattr
+        xattr._yt_dlp__identifier = u'pyxattr'
 
 try:
     import curl_cffi
@@ -82,7 +83,7 @@ except ImportError:
 
 from . import Cryptodome
 
-all_dependencies = dict((k, v) for k, v in globals().items() if not k.startswith('_'))
+all_dependencies = dict((k, v) for k, v in globals().items() if not k.startswith(u'_'))
 available_dependencies = dict((k, v) for k, v in all_dependencies.items() if v)
 
 
@@ -91,6 +92,6 @@ Cryptodome_AES = Cryptodome.AES
 
 
 __all__ = [
-    'all_dependencies',
-    'available_dependencies',
+    u'all_dependencies',
+    u'available_dependencies',
 ] + list(all_dependencies.keys())

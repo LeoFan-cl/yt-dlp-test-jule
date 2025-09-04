@@ -60,8 +60,8 @@ class MetadataParserPP(PostProcessor):
             action(info)
         return [], info
 
-    class Actions:
-        class INTERPRET:
+    class Actions(object):
+        class INTERPRET(object):
             value = 2
             def __init__(self, pp, outtmpl, intmpl):
                 self.pp = pp
@@ -69,15 +69,15 @@ class MetadataParserPP(PostProcessor):
                 self.regex = pp.format_to_regex(intmpl)
 
             def __call__(self, info):
-                match = re.match(self.regex, self.pp.get_param('from', info))
+                match = re.match(self.regex, self.pp.get_param(u'from', info))
                 if match is None:
-                    self.pp.report_warning('could not interpret "%s" as "%s"' % (
-                        self.pp.get_param('from', info), self.pp.get_param('to', info)))
+                    self.pp.report_warning(u'could not interpret "%s" as "%s"' % (
+                        self.pp.get_param(u'from', info), self.pp.get_param(u'to', info)))
                     return
                 for key, value in match.groupdict().items():
                     info[key] = value
 
-        class REPLACE:
+        class REPLACE(object):
             value = 3
             def __init__(self, pp, field, search, replace):
                 self.pp, self.field, self.search, self.replace = pp, field, search, replace
@@ -85,13 +85,13 @@ class MetadataParserPP(PostProcessor):
             def __call__(self, info):
                 val = traverse_obj(info, self.field, casesense=False)
                 if val is None:
-                    self.pp.to_screen('Video does not have a %s' % self.field)
+                    self.pp.to_screen(u'Video does not have a %s' % self.field)
                     return
-                elif not isinstance(val, (str, unicode)):
-                    self.pp.report_warning('Cannot replace in field %s since it is a %s' % (
+                elif not isinstance(val, (unicode, unicode)):
+                    self.pp.report_warning(u'Cannot replace in field %s since it is a %s' % (
                         self.field, type(val).__name__))
                     return
-                self.pp.write_debug('Replacing all %r in %s with %r' % (
+                self.pp.write_debug(u'Replacing all %r in %s with %r' % (
                     self.search, self.field, self.replace))
                 info[self.field] = val.replace(self.search, self.replace)
 
@@ -101,7 +101,7 @@ class MetadataFromFieldPP(MetadataParserPP):
     def to_action(cls, f):
         match = re.match(ur'(?s)(?P<in>.*?)(?<!\\):(?P<out>.+)$', f)
         if match is None:
-            raise ValueError('it should be FROM:TO, not %r' % f)
+            raise ValueError(u'it should be FROM:TO, not %r' % f)
         return (
             cls.Actions.INTERPRET,
             match.group(u'in').replace(u'\\:', u':'),

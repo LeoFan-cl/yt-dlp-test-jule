@@ -235,13 +235,13 @@ def _get_chromium_based_browser_settings(browser_name):
         appdata_local = os.path.expandvars('%LOCALAPPDATA%')
         appdata_roaming = os.path.expandvars('%APPDATA%')
         browser_dir = {
-            'brave': os.path.join(appdata_local, r'BraveSoftware\Brave-Browser\User Data'),
-            'chrome': os.path.join(appdata_local, r'Google\Chrome\User Data'),
-            'chromium': os.path.join(appdata_local, r'Chromium\User Data'),
-            'edge': os.path.join(appdata_local, r'Microsoft\Edge\User Data'),
-            'opera': os.path.join(appdata_roaming, r'Opera Software\Opera Stable'),
-            'vivaldi': os.path.join(appdata_local, r'Vivaldi\User Data'),
-            'whale': os.path.join(appdata_local, r'Naver\Naver Whale\User Data'),
+            'brave': os.path.join(appdata_local, 'BraveSoftware\\Brave-Browser\\User Data'),
+            'chrome': os.path.join(appdata_local, 'Google\\Chrome\\User Data'),
+            'chromium': os.path.join(appdata_local, 'Chromium\\User Data'),
+            'edge': os.path.join(appdata_local, 'Microsoft\\Edge\\User Data'),
+            'opera': os.path.join(appdata_roaming, 'Opera Software\\Opera Stable'),
+            'vivaldi': os.path.join(appdata_local, 'Vivaldi\\User Data'),
+            'whale': os.path.join(appdata_local, 'Naver\\Naver Whale\\User Data'),
         }[browser_name]
 
     elif sys.platform == 'darwin':
@@ -983,7 +983,7 @@ def _get_linux_keyring_password(browser_keyring_name, keyring, logger):
     elif keyring == _LinuxKeyring.BASICTEXT:
         # when basic text is chosen, all cookies are stored as v10 (so no keyring password is required)
         return None
-    assert False, f'Unknown keyring {keyring}'
+    assert False, 'Unknown keyring %s' % (keyring,)
 
 
 def _get_mac_keyring_password(browser_keyring_name, logger):

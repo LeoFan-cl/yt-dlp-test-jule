@@ -40,7 +40,7 @@ class SponsorBlockPP(FFmpegPostProcessor):
     def run(self, info):
         extractor = info[u'extractor_key']
         if extractor not in self.EXTRACTORS:
-            self.to_screen('SponsorBlock is not supported for %s' % extractor)
+            self.to_screen(u'SponsorBlock is not supported for %s' % extractor)
             return [], info
 
         self.to_screen(u'Fetching SponsorBlock segments')
@@ -92,13 +92,13 @@ class SponsorBlockPP(FFmpegPostProcessor):
         if not sponsor_chapters:
             self.to_screen(u'No matching segments were found in the SponsorBlock database')
         else:
-            self.to_screen('Found %d segments in the SponsorBlock database' % len(sponsor_chapters))
+            self.to_screen(u'Found %d segments in the SponsorBlock database' % len(sponsor_chapters))
         return sponsor_chapters
 
     def _get_sponsor_segments(self, video_id, service):
         video_hash = hashlib.sha256(video_id.encode(u'ascii')).hexdigest()
         # SponsorBlock API recommends using first 4 hash characters.
-        url = '%s/api/skipSegments/%s?' % (self._API_URL, video_hash[:4]) + urllib.urlencode({
+        url = u'%s/api/skipSegments/%s?' % (self._API_URL, video_hash[:4]) + urllib.urlencode({
             u'service': service,
             u'categories': json.dumps(self._categories),
             u'actionTypes': json.dumps([u'skip', u'poi', u'chapter']),

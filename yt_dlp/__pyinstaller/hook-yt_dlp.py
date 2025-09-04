@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from __future__ import print_function, unicode_literals
 import sys
 
@@ -10,32 +11,32 @@ def pycryptodome_module():
     except ImportError:
         try:
             import Crypto  # noqa: F401
-            print('WARNING: Using Crypto since Cryptodome is not available. '
-                  'Install with: python -m pip install pycryptodomex', file=sys.stderr)
-            return 'Crypto'
+            print >>sys.stderr, u'WARNING: Using Crypto since Cryptodome is not available. '
+                  u'Install with: python -m pip install pycryptodomex'
+            return u'Crypto'
         except ImportError:
             pass
-    return 'Cryptodome'
+    return u'Cryptodome'
 
 
 def get_hidden_imports():
-    for i in ('yt_dlp.compat._legacy', 'yt_dlp.compat._deprecated'):
+    for i in (u'yt_dlp.compat._legacy', u'yt_dlp.compat._deprecated'):
         yield i
-    for i in ('yt_dlp.utils._legacy', 'yt_dlp.utils._deprecated'):
+    for i in (u'yt_dlp.utils._legacy', u'yt_dlp.utils._deprecated'):
         yield i
     yield pycryptodome_module()
     # Only `websockets` is required, others are collected just in case
-    for module in ('websockets', 'requests', 'urllib3'):
+    for module in (u'websockets', u'requests', u'urllib3'):
         for i in collect_submodules(module):
             yield i
     # These are auto-detected, but explicitly add them just in case
-    for i in ('mutagen', 'brotli', 'certifi', 'secretstorage', 'curl_cffi'):
+    for i in (u'mutagen', u'brotli', u'certifi', u'secretstorage', u'curl_cffi'):
         yield i
 
 
 hiddenimports = list(get_hidden_imports())
-print('Adding imports: {0}'.format(hiddenimports))
+print u'Adding imports: {0}'.format(hiddenimports)
 
-excludedimports = ['youtube_dl', 'youtube_dlc', 'test', 'ytdlp_plugins', 'devscripts', 'bundle']
+excludedimports = [u'youtube_dl', u'youtube_dlc', u'test', u'ytdlp_plugins', u'devscripts', u'bundle']
 
-datas = collect_data_files('curl_cffi', includes=['cacert.pem'])
+datas = collect_data_files(u'curl_cffi', includes=[u'cacert.pem'])

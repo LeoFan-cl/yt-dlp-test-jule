@@ -3,24 +3,24 @@ from __future__ import with_statement
 from io import open
 
 def what(file=None, h=None):
-    """Detect format of image (Currently supports jpeg, png, webp, gif only)
+    u"""Detect format of image (Currently supports jpeg, png, webp, gif only)
     Ref: https://github.com/python/cpython/blob/3.11/Lib/imghdr.py
     Ref: https://www.w3.org/Graphics/JPEG/itu-t81.pdf
     """
     if h is None:
-        with open(file, 'rb') as f:
+        with open(file, u'rb') as f:
             h = f.read(12)
 
-    if h.startswith(b'RIFF') and h.startswith(b'WEBP', 8):
-        return 'webp'
+    if h.startswith('RIFF') and h.startswith('WEBP', 8):
+        return u'webp'
 
-    if h.startswith(b'\\x89PNG'):
-        return 'png'
+    if h.startswith('\\x89PNG'):
+        return u'png'
 
-    if h.startswith(b'\\xFF\\xD8\\xFF'):
-        return 'jpeg'
+    if h.startswith('\\xFF\\xD8\\xFF'):
+        return u'jpeg'
 
-    if h.startswith(b'GIF'):
-        return 'gif'
+    if h.startswith('GIF'):
+        return u'gif'
 
     return None

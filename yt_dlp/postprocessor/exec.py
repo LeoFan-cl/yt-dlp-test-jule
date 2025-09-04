@@ -30,11 +30,11 @@ class ExecPP(PostProcessor):
         return [], info
 
     def run_cmd(self, cmd):
-        self.to_screen('Executing command: %s' % cmd)
+        self.to_screen(u'Executing command: %s' % cmd)
         ret = Popen.run(cmd, shell=True)
         if ret.returncode != 0:
             raise PostProcessingError(
-                'Command returned error code %d' % ret.returncode)
+                u'Command returned error code %d' % ret.returncode)
 
 
 # Deprecated

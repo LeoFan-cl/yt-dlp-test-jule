@@ -6,7 +6,7 @@
 from __future__ import absolute_import, unicode_literals
 import sys
 
-if __package__ is None and not getattr(sys, 'frozen', False):
+if __package__ is None and not getattr(sys, u'frozen', False):
     # direct call of __main__.py
     import os.path
     path = os.path.realpath(os.path.abspath(__file__))
@@ -14,25 +14,25 @@ if __package__ is None and not getattr(sys, 'frozen', False):
 
 import yt_dlp
 
-if __name__ == '__main__':
+if __name__ == u'__main__':
     from pprint import pprint
     from itertools import imap
 
-    _TEST_URL = "https://www.youtube.com/watch?v=jNQXAC9IVRw"
+    _TEST_URL = u"https://www.youtube.com/watch?v=jNQXAC9IVRw"
     argv = [
-        "--verbose",
-        "-s",
-        "-g",
+        u"--verbose",
+        u"-s",
+        u"-g",
         #"-F",
         _TEST_URL,
-        "--list-formats",
+        u"--list-formats",
         # "-f",
         # "18"
     ]
 
     yt_dlp.main(argv)
 
-    """
+    u"""
 
     YoutubeDL = yt_dlp.YoutubeDL
     params = {

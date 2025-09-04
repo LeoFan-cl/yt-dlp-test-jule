@@ -50,7 +50,7 @@ class XAttrMetadataPP(PostProcessor):
 
     def run(self, info):
         mtime = os.stat(info[u'filepath']).st_mtime
-        self.to_screen('Writing metadata to file\'s xattrs')
+        self.to_screen(u'Writing metadata to file\'s xattrs')
         for xattrname, infoname in self.XATTR_MAPPING.items():
             try:
                 value = info.get(infoname)
@@ -62,7 +62,7 @@ class XAttrMetadataPP(PostProcessor):
                         if sys.platform != u'darwin':
                             continue
                         value = self.APPLE_PLIST_TEMPLATE % value
-                    write_xattr(info[u'filepath'], xattrname, value.encode('utf-8'))
+                    write_xattr(info[u'filepath'], xattrname, value.encode(u'utf-8'))
 
             except XAttrUnavailableError, e:
                 raise PostProcessingError(unicode(e))
@@ -70,13 +70,13 @@ class XAttrMetadataPP(PostProcessor):
                 if e.reason == u'NO_SPACE':
                     self.report_warning(
                         u'There\'s no disk space left, disk quota exceeded or filesystem xattr limit exceeded. '
-                        'Extended attribute "%s" was not written.' % xattrname)
+                        u'Extended attribute "%s" was not written.' % xattrname)
                 elif e.reason == u'VALUE_TOO_LONG':
-                    self.report_warning('Unable to write extended attribute "%s" due to too long values.' % xattrname)
+                    self.report_warning(u'Unable to write extended attribute "%s" due to too long values.' % xattrname)
                 else:
                     tip = (u'You need to use NTFS' if os.name == u'nt'
                            else u'You may have to enable them in your "/etc/fstab"')
-                    raise PostProcessingError('This filesystem doesn\'t support extended attributes. %s' % tip)
+                    raise PostProcessingError(u'This filesystem doesn\'t support extended attributes. %s' % tip)
 
         self.try_utime(info[u'filepath'], mtime, mtime)
         return [], info

@@ -18,12 +18,11 @@ from ...utils.networking import HTTPHeaderDict
 
 
 class PoTokenContext(object):
-    GVS = 'gvs'
-    PLAYER = 'player'
-    SUBS = 'subs'
+    GVS = u'gvs'
+    PLAYER = u'player'
+    SUBS = u'subs'
 
 
-@dataclasses.dataclass
 class PoTokenRequest(object):
     context = None
     innertube_context = None
@@ -77,7 +76,8 @@ class PoTokenRequest(object):
         )
 
 
-@dataclasses.dataclass
+PoTokenRequest = dataclasses.dataclass(PoTokenRequest)
+
 class PoTokenResponse(object):
     po_token = None
     expires_at = None
@@ -87,12 +87,14 @@ class PoTokenResponse(object):
         self.expires_at = expires_at
 
 
+PoTokenResponse = dataclasses.dataclass(PoTokenResponse)
+
 class PoTokenProviderRejectedRequest(IEContentProviderError):
-    """Reject the PoTokenRequest (cannot handle the request)"""
+    u"""Reject the PoTokenRequest (cannot handle the request)"""
 
 
 class PoTokenProviderError(IEContentProviderError):
-    """An error occurred while fetching a PO Token"""
+    u"""An error occurred while fetching a PO Token"""
 
 
 class ExternalRequestFeature(object):
@@ -108,7 +110,7 @@ class ExternalRequestFeature(object):
 
 class PoTokenProvider(IEContentProvider):
     __metaclass__ = abc.ABCMeta
-    _PROVIDER_KEY_SUFFIX = 'PTP'
+    _PROVIDER_KEY_SUFFIX = u'PTP'
 
     _SUPPORTED_CONTEXTS = ()
     _SUPPORTED_CLIENTS = ()
@@ -116,39 +118,38 @@ class PoTokenProvider(IEContentProvider):
 
     def __validate_request(self, request):
         if not self.is_available():
-            raise PoTokenProviderRejectedRequest('{0} is not available'.format(self.PROVIDER_NAME))
+            raise PoTokenProviderRejectedRequest(u'{0} is not available'.format(self.PROVIDER_NAME))
 
         if (
             self._SUPPORTED_CONTEXTS is not None
             and request.context not in self._SUPPORTED_CONTEXTS
         ):
             raise PoTokenProviderRejectedRequest(
-                'PO Token Context "{0}" is not supported by {1}'.format(request.context, self.PROVIDER_NAME))
+                u'PO Token Context "{0}" is not supported by {1}'.format(request.context, self.PROVIDER_NAME))
 
         if self._SUPPORTED_CLIENTS is not None:
             client_name = traverse_obj(
-                request.innertube_context, ('client', 'clientName'))
+                request.innertube_context, (u'client', u'clientName'))
             if client_name not in self._SUPPORTED_CLIENTS:
                 raise PoTokenProviderRejectedRequest(
-                    'Client "{0}" is not supported by {1}. Supported clients: {2}'.format(
-                        client_name, self.PROVIDER_NAME, ", ".join(self._SUPPORTED_CLIENTS) or "none"))
+                    u'Client "{0}" is not supported by {1}. Supported clients: {2}'.format(
+                        client_name, self.PROVIDER_NAME, u", ".join(self._SUPPORTED_CLIENTS) or u"none"))
 
         self.__validate_external_request_features(request)
 
     @cached_property
     def _supported_proxy_schemes(self):
-        return {
-            scheme: feature
+        return dict((
+            scheme, feature)
             for scheme, feature in {
-                'http': ExternalRequestFeature.PROXY_SCHEME_HTTP,
-                'https': ExternalRequestFeature.PROXY_SCHEME_HTTPS,
-                'socks4': ExternalRequestFeature.PROXY_SCHEME_SOCKS4,
-                'socks4a': ExternalRequestFeature.PROXY_SCHEME_SOCKS4A,
-                'socks5': ExternalRequestFeature.PROXY_SCHEME_SOCKS5,
-                'socks5h': ExternalRequestFeature.PROXY_SCHEME_SOCKS5H,
+                u'http': ExternalRequestFeature.PROXY_SCHEME_HTTP,
+                u'https': ExternalRequestFeature.PROXY_SCHEME_HTTPS,
+                u'socks4': ExternalRequestFeature.PROXY_SCHEME_SOCKS4,
+                u'socks4a': ExternalRequestFeature.PROXY_SCHEME_SOCKS4A,
+                u'socks5': ExternalRequestFeature.PROXY_SCHEME_SOCKS5,
+                u'socks5h': ExternalRequestFeature.PROXY_SCHEME_SOCKS5H,
             }.items()
-            if feature in (self._SUPPORTED_EXTERNAL_REQUEST_FEATURES or [])
-        }
+            if feature in (self._SUPPORTED_EXTERNAL_REQUEST_FEATURES or []))
 
     def __validate_external_request_features(self, request):
         if self._SUPPORTED_EXTERNAL_REQUEST_FEATURES is None:
@@ -158,22 +159,22 @@ class PoTokenProvider(IEContentProvider):
             scheme = urllib_parse.urlparse(request.request_proxy).scheme
             if scheme.lower() not in self._supported_proxy_schemes:
                 raise PoTokenProviderRejectedRequest(
-                    'External requests by "{0}" provider do not support proxy scheme "{1}". Supported proxy schemes: {2}'.format(
-                        self.PROVIDER_NAME, scheme, ", ".join(self._supported_proxy_schemes) or "none"))
+                    u'External requests by "{0}" provider do not support proxy scheme "{1}". Supported proxy schemes: {2}'.format(
+                        self.PROVIDER_NAME, scheme, u", ".join(self._supported_proxy_schemes) or u"none"))
 
         if (
             request.request_source_address
             and ExternalRequestFeature.SOURCE_ADDRESS not in self._SUPPORTED_EXTERNAL_REQUEST_FEATURES
         ):
             raise PoTokenProviderRejectedRequest(
-                'External requests by "{0}" provider do not support setting source address'.format(self.PROVIDER_NAME))
+                u'External requests by "{0}" provider do not support setting source address'.format(self.PROVIDER_NAME))
 
         if (
             not request.request_verify_tls
             and ExternalRequestFeature.DISABLE_TLS_VERIFICATION not in self._SUPPORTED_EXTERNAL_REQUEST_FEATURES
         ):
             raise PoTokenProviderRejectedRequest(
-                'External requests by "{0}" provider do not support ignoring TLS certificate failures'.format(self.PROVIDER_NAME))
+                u'External requests by "{0}" provider do not support ignoring TLS certificate failures'.format(self.PROVIDER_NAME))
 
     def request_pot(self, request):
         self.__validate_request(request)
@@ -181,7 +182,7 @@ class PoTokenProvider(IEContentProvider):
 
     @abc.abstractmethod
     def _real_request_pot(self, request):
-        """To be implemented by subclasses"""
+        u"""To be implemented by subclasses"""
         pass
 
     def _request_webpage(self, request, pot_request=None, note=None, **kwargs):
@@ -189,18 +190,18 @@ class PoTokenProvider(IEContentProvider):
 
         if pot_request is not None:
             req.headers = HTTPHeaderDict(pot_request.request_headers, req.headers)
-            req.proxies = req.proxies or ({'all': pot_request.request_proxy} if pot_request.request_proxy else {})
+            req.proxies = req.proxies or ({u'all': pot_request.request_proxy} if pot_request.request_proxy else {})
 
             if pot_request.request_cookiejar is not None:
-                req.extensions['cookiejar'] = req.extensions.get('cookiejar', pot_request.request_cookiejar)
+                req.extensions[u'cookiejar'] = req.extensions.get(u'cookiejar', pot_request.request_cookiejar)
 
         if note is not False:
-            self.logger.info(str(note) if note else 'Requesting webpage')
+            self.logger.info(unicode(note) if note else u'Requesting webpage')
         return self.ie._downloader.urlopen(req)
 
 
 def register_provider(provider):
-    """Register a PoTokenProvider class"""
+    u"""Register a PoTokenProvider class"""
     return register_provider_generic(
         provider=provider,
         base_class=PoTokenProvider,
@@ -208,18 +209,18 @@ def register_provider(provider):
     )
 
 
-def provider_bug_report_message(provider, before=';'):
+def provider_bug_report_message(provider, before=u';'):
     msg = provider.BUG_REPORT_MESSAGE
 
     before = before.rstrip()
-    if not before or before.endswith(('.', '!', '?')):
+    if not before or before.endswith((u'.', u'!', u'?')):
         msg = msg[0].title() + msg[1:]
 
-    return '{0} {1}'.format(before, msg) if before else msg
+    return u'{0} {1}'.format(before, msg) if before else msg
 
 
 def register_preference(*providers):
-    """Register a preference for a PoTokenProvider"""
+    u"""Register a preference for a PoTokenProvider"""
     return register_preference_generic(
         PoTokenProvider,
         _ptp_preferences.value,
