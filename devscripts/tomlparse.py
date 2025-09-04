@@ -1,182 +1,189 @@
-b'--- ./devscripts/tomlparse.py\t(original)'
-b'+++ ./devscripts/tomlparse.py\t(refactored)'
-b'@@ -1,6 +1,6 @@'
-b' #!/usr/bin/env python3'
-b' '
-b'-"""'
-b'+u"""'
-b' Simple parser for spec compliant toml files'
-b' '
-b' A simple toml parser for files that comply with the spec.'
-b'@@ -9,14 +9,16 @@'
-b' IMPORTANT: INVALID FILES OR MULTILINE STRINGS ARE NOT SUPPORTED!'
-b' """'
-b' '
-b'+from __future__ import with_statement'
-b'+from __future__ import absolute_import'
-b' from __future__ import annotations'
-b' '
-b' import datetime as dt'
-b' import json'
-b' import re'
-b' '
-b"-WS = r'(?:[\\ \\t]*)'"
-b'-STRING_RE = re.compile(r\'"(?:\\\\.|[^\\\\"\\n])*"|\\\'[^\\\'\\n]*\\\'\')'
-b"+WS = ur'(?:[\\ \\t]*)'"
-b'+STRING_RE = re.compile(ur\'"(?:\\\\.|[^\\\\"\\n])*"|\\\'[^\\\'\\n]*\\\'\')'
-b" SINGLE_KEY_RE = re.compile(rf'{STRING_RE.pattern}|[A-Za-z0-9_-]+')"
-b" KEY_RE = re.compile(rf'{WS}(?:{SINGLE_KEY_RE.pattern}){WS}(?:\\.{WS}(?:{SINGLE_KEY_RE.pattern}){WS})*')"
-b" EQUALS_RE = re.compile(rf'={WS}')"
-b'@@ -26,20 +28,20 @@'
-b" EXPRESSION_RE = re.compile(rf'^(?:{_SUBTABLE}|{KEY_RE.pattern}=)', re.MULTILINE)"
-b' '
-b" LIST_WS_RE = re.compile(rf'{WS}((#[^\\n]*)?\\n{WS})*')"
-b"-LEFTOVER_VALUE_RE = re.compile(r'[^,}\\]\\t\\n#]+')"
-b"+LEFTOVER_VALUE_RE = re.compile(ur'[^,}\\]\\t\\n#]+')"
-b' '
-b' '
-b'-def parse_key(value: str):'
-b'+def parse_key(value):'
-b'     for match in SINGLE_KEY_RE.finditer(value):'
-b'-        if match[0][0] == \'"\':'
-b'+        if match[0][0] == u\'"\':'
-b'             yield json.loads(match[0])'
-b"-        elif match[0][0] == '\\'':"
-b"+        elif match[0][0] == u'\\'':"
-b'             yield match[0][1:-1]'
-b'         else:'
-b'             yield match[0]'
-b' '
-b' '
-b'-def get_target(root: dict, paths: list[str], is_list=False):'
-b'+def get_target(root, paths, is_list=False):'
-b'     target = root'
-b' '
-b'     for index, key in enumerate(paths, 1):'
-b'@@ -61,7 +63,7 @@'
-b'     return target'
-b' '
-b' '
-b'-def parse_enclosed(data: str, index: int, end: str, ws_re: re.Pattern):'
-b'+def parse_enclosed(data, index, end, ws_re):'
-b'     index += 1'
-b' '
-b'     if match := ws_re.match(data, index):'
-b'@@ -73,7 +75,7 @@'
-b'         if match := ws_re.match(data, index):'
-b'             index = match.end()'
-b' '
-b"-        if data[index] == ',':"
-b"+        if data[index] == u',':"
-b'             index += 1'
-b' '
-b'         if match := ws_re.match(data, index):'
-b'@@ -83,12 +85,12 @@'
-b'     yield False, index + 1'
-b' '
-b' '
-b'-def parse_value(data: str, index: int):'
-b"-    if data[index] == '[':"
-b'+def parse_value(data, index):'
-b"+    if data[index] == u'[':"
-b'         result = []'
-b' '
-b"-        indices = parse_enclosed(data, index, ']', LIST_WS_RE)"
-b'-        valid, index = next(indices)'
-b"+        indices = parse_enclosed(data, index, u']', LIST_WS_RE)"
-b'+        valid, index = indices.next()'
-b'         while valid:'
-b'             index, value = parse_value(data, index)'
-b'             result.append(value)'
-b'@@ -96,18 +98,18 @@'
-b' '
-b'         return index, result'
-b' '
-b"-    if data[index] == '{':"
-b"+    if data[index] == u'{':"
-b'         result = {}'
-b' '
-b"-        indices = parse_enclosed(data, index, '}', WS_RE)"
-b'-        valid, index = next(indices)'
-b"+        indices = parse_enclosed(data, index, u'}', WS_RE)"
-b'+        valid, index = indices.next()'
-b'         while valid:'
-b'             valid, index = indices.send(parse_kv_pair(data, index, result))'
-b' '
-b'         return index, result'
-b' '
-b'     if match := STRING_RE.match(data, index):'
-b'-        return match.end(), json.loads(match[0]) if match[0][0] == \'"\' else match[0][1:-1]'
-b'+        return match.end(), json.loads(match[0]) if match[0][0] == u\'"\' else match[0][1:-1]'
-b' '
-b'     match = LEFTOVER_VALUE_RE.match(data, index)'
-b'     assert match'
-b'@@ -118,7 +120,7 @@'
-b'         dt.time.fromisoformat,'
-b'         dt.date.fromisoformat,'
-b'         dt.datetime.fromisoformat,'
-b"-        {'true': True, 'false': False}.get,"
-b"+        {u'true': True, u'false': False}.get,"
-b'     ]:'
-b'         try:'
-b'             value = func(value)'
-b'@@ -129,12 +131,13 @@'
-b'     return match.end(), value'
-b' '
-b' '
-b'-def parse_kv_pair(data: str, index: int, target: dict):'
-b'+def parse_kv_pair(data, index, target):'
-b'     match = KEY_RE.match(data, index)'
-b'     if not match:'
-b'         return None'
-b' '
-b'-    *keys, key = parse_key(match[0])'
-b'+    _3to2list = list(parse_key(match[0]))'
-b'+keys, key, = [_3to2list[:-1]] + _3to2list[-1:]'
-b' '
-b'     match = EQUALS_RE.match(data, match.end())'
-b'     assert match'
-b'@@ -145,7 +148,7 @@'
-b'     return index'
-b' '
-b' '
-b'-def parse_toml(data: str):'
-b'+def parse_toml(data):'
-b'     root = {}'
-b'     target = root'
-b' '
-b'@@ -155,9 +158,9 @@'
-b'         if not match:'
-b'             break'
-b' '
-b"-        if match.group('subtable'):"
-b"+        if match.group(u'subtable'):"
-b'             index = match.end()'
-b"-            path, is_list = match.group('path', 'is_list')"
-b"+            path, is_list = match.group(u'path', u'is_list')"
-b'             target = get_target(root, list(parse_key(path)), bool(is_list))'
-b'             continue'
-b' '
-b'@@ -172,18 +175,18 @@'
-b'     from pathlib import Path'
-b' '
-b'     parser = argparse.ArgumentParser()'
-b"-    parser.add_argument('infile', type=Path, help='The TOML file to read as input')"
-b"+    parser.add_argument(u'infile', type=Path, help=u'The TOML file to read as input')"
-b'     args = parser.parse_args()'
-b' '
-b"-    with args.infile.open('r', encoding='utf-8') as file:"
-b"+    with args.infile.open(u'r', encoding=u'utf-8') as file:"
-b'         data = file.read()'
-b' '
-b'     def default(obj):'
-b'         if isinstance(obj, (dt.date, dt.time, dt.datetime)):'
-b'             return obj.isoformat()'
-b' '
-b'-    print(json.dumps(parse_toml(data), default=default))'
-b'+    print json.dumps(parse_toml(data), default=default)'
-b' '
-b' '
-b"-if __name__ == '__main__':"
-b"+if __name__ == u'__main__':"
-b'     main()'
+#!/usr/bin/env python3
+
+"""
+Simple parser for spec compliant toml files
+
+A simple toml parser for files that comply with the spec.
+Should only be used to parse `pyproject.toml` for `install_deps.py`.
+
+IMPORTANT: INVALID FILES OR MULTILINE STRINGS ARE NOT SUPPORTED!
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import json
+import re
+
+WS = r'(?:[\ \t]*)'
+STRING_RE = re.compile(r'"(?:\\.|[^\\"\n])*"|\'[^\'\n]*\'')
+SINGLE_KEY_RE = re.compile(rf'{STRING_RE.pattern}|[A-Za-z0-9_-]+')
+KEY_RE = re.compile(rf'{WS}(?:{SINGLE_KEY_RE.pattern}){WS}(?:\.{WS}(?:{SINGLE_KEY_RE.pattern}){WS})*')
+EQUALS_RE = re.compile(rf'={WS}')
+WS_RE = re.compile(WS)
+
+_SUBTABLE = rf'(?P<subtable>^\[(?P<is_list>\[)?(?P<path>{KEY_RE.pattern})\]\]?)'
+EXPRESSION_RE = re.compile(rf'^(?:{_SUBTABLE}|{KEY_RE.pattern}=)', re.MULTILINE)
+
+LIST_WS_RE = re.compile(rf'{WS}((#[^\n]*)?\n{WS})*')
+LEFTOVER_VALUE_RE = re.compile(r'[^,}\]\t\n#]+')
+
+
+def parse_key(value: str):
+    for match in SINGLE_KEY_RE.finditer(value):
+        if match[0][0] == '"':
+            yield json.loads(match[0])
+        elif match[0][0] == '\'':
+            yield match[0][1:-1]
+        else:
+            yield match[0]
+
+
+def get_target(root: dict, paths: list[str], is_list=False):
+    target = root
+
+    for index, key in enumerate(paths, 1):
+        use_list = is_list and index == len(paths)
+        result = target.get(key)
+        if result is None:
+            result = [] if use_list else {}
+            target[key] = result
+
+        if isinstance(result, dict):
+            target = result
+        elif use_list:
+            target = {}
+            result.append(target)
+        else:
+            target = result[-1]
+
+    assert isinstance(target, dict)
+    return target
+
+
+def parse_enclosed(data: str, index: int, end: str, ws_re: re.Pattern):
+    index += 1
+
+    if match := ws_re.match(data, index):
+        index = match.end()
+
+    while data[index] != end:
+        index = yield True, index
+
+        if match := ws_re.match(data, index):
+            index = match.end()
+
+        if data[index] == ',':
+            index += 1
+
+        if match := ws_re.match(data, index):
+            index = match.end()
+
+    assert data[index] == end
+    yield False, index + 1
+
+
+def parse_value(data: str, index: int):
+    if data[index] == '[':
+        result = []
+
+        indices = parse_enclosed(data, index, ']', LIST_WS_RE)
+        valid, index = next(indices)
+        while valid:
+            index, value = parse_value(data, index)
+            result.append(value)
+            valid, index = indices.send(index)
+
+        return index, result
+
+    if data[index] == '{':
+        result = {}
+
+        indices = parse_enclosed(data, index, '}', WS_RE)
+        valid, index = next(indices)
+        while valid:
+            valid, index = indices.send(parse_kv_pair(data, index, result))
+
+        return index, result
+
+    if match := STRING_RE.match(data, index):
+        return match.end(), json.loads(match[0]) if match[0][0] == '"' else match[0][1:-1]
+
+    match = LEFTOVER_VALUE_RE.match(data, index)
+    assert match
+    value = match[0].strip()
+    for func in [
+        int,
+        float,
+        dt.time.fromisoformat,
+        dt.date.fromisoformat,
+        dt.datetime.fromisoformat,
+        {'true': True, 'false': False}.get,
+    ]:
+        try:
+            value = func(value)
+            break
+        except Exception:
+            pass
+
+    return match.end(), value
+
+
+def parse_kv_pair(data: str, index: int, target: dict):
+    match = KEY_RE.match(data, index)
+    if not match:
+        return None
+
+    *keys, key = parse_key(match[0])
+
+    match = EQUALS_RE.match(data, match.end())
+    assert match
+    index = match.end()
+
+    index, value = parse_value(data, index)
+    get_target(target, keys)[key] = value
+    return index
+
+
+def parse_toml(data: str):
+    root = {}
+    target = root
+
+    index = 0
+    while True:
+        match = EXPRESSION_RE.search(data, index)
+        if not match:
+            break
+
+        if match.group('subtable'):
+            index = match.end()
+            path, is_list = match.group('path', 'is_list')
+            target = get_target(root, list(parse_key(path)), bool(is_list))
+            continue
+
+        index = parse_kv_pair(data, match.start(), target)
+        assert index is not None
+
+    return root
+
+
+def main():
+    import argparse
+    from pathlib import Path
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('infile', type=Path, help='The TOML file to read as input')
+    args = parser.parse_args()
+
+    with args.infile.open('r', encoding='utf-8') as file:
+        data = file.read()
+
+    def default(obj):
+        if isinstance(obj, (dt.date, dt.time, dt.datetime)):
+            return obj.isoformat()
+
+    print(json.dumps(parse_toml(data), default=default))
+
+
+if __name__ == '__main__':
+    main()

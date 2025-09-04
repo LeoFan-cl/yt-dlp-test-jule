@@ -1,7 +1,5 @@
-b'--- ./test/testdata/yt_dlp_plugins/postprocessor/normal.py\t(original)'
-b'+++ ./test/testdata/yt_dlp_plugins/postprocessor/normal.py\t(refactored)'
-b'@@ -1,3 +1,4 @@'
-b'+from __future__ import absolute_import'
-b' from yt_dlp.postprocessor.common import PostProcessor'
-b' '
-b' '
+from yt_dlp.postprocessor.common import PostProcessor
+
+
+class NormalPluginPP(PostProcessor):
+    REPLACED = False

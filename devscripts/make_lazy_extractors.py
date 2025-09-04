@@ -1,5 +1,4 @@
-#!/usr/bin/env python
-from __future__ import absolute_import, division, print_function, unicode_literals
+#!/usr/bin/env python3
 
 # Allow direct execution
 import os
@@ -45,27 +44,27 @@ def main():
     import_extractors()
 
     DummyInfoExtractor = type('InfoExtractor', (InfoExtractor,), {'IE_NAME': NO_ATTR})
-    module_src = '\n'.join(
-        (MODULE_TEMPLATE,
-         '    _module = None')
-        + tuple(extra_ie_code(DummyInfoExtractor))
-        + ('\nclass LazyLoadSearchExtractor(LazyLoadExtractor):\n    pass\n',)
-        + tuple(build_ies(list(extractors.value.values()), (InfoExtractor, SearchInfoExtractor), DummyInfoExtractor))
-    )
+    module_src = '\n'.join((
+        MODULE_TEMPLATE,
+        '    _module = None',
+        *extra_ie_code(DummyInfoExtractor),
+        '\nclass LazyLoadSearchExtractor(LazyLoadExtractor):\n    pass\n',
+        *build_ies(list(extractors.value.values()), (InfoExtractor, SearchInfoExtractor), DummyInfoExtractor),
+    ))
 
-    write_file(lazy_extractors_filename, '{0}\n'.format(module_src))
+    write_file(lazy_extractors_filename, f'{module_src}\n')
 
 
 def extra_ie_code(ie, base=None):
     for var in STATIC_CLASS_PROPERTIES:
         val = getattr(ie, var)
         if val != (getattr(base, var) if base else NO_ATTR):
-            yield '    {0} = {1!r}'.format(var, val)
+            yield f'    {var} = {val!r}'
     yield ''
 
     for name in CLASS_METHODS:
         f = getattr(ie, name)
-        if not base or f.im_func != getattr(base, name).im_func:
+        if not base or f.__func__ != getattr(base, name).__func__:
             yield getsource(f)
 
 
@@ -76,7 +75,7 @@ def build_ies(ies, bases, attr_base):
         if ie in ies:
             names.append(ie.__name__)
 
-    yield '\n_CLASS_LOOKUP = {%s}' % ', '.join('{0!r}: {0}'.format(name) for name in names)
+    yield '\n_CLASS_LOOKUP = {%s}' % ', '.join(f'{name!r}: {name}' for name in names)
 
 
 def sort_ies(ies, ignored_bases):
@@ -85,7 +84,7 @@ def sort_ies(ies, ignored_bases):
     assert ies[-1].__name__ == 'GenericIE', 'Last IE must be GenericIE'
     while classes:
         for c in classes[:]:
-            bases = set(c.__bases__) - set([object]) | set(ignored_bases)
+            bases = set(c.__bases__) - {object, *ignored_bases}
             restart = False
             for b in sorted(bases, key=lambda x: x.__name__):
                 if b not in classes and b not in returned_classes:
