@@ -18,7 +18,7 @@ from ..utils import (
     update_url_query,
 )
 from ..utils._decorators import classproperty
-from .exceptions import RequestError, UnsupportedRequest
+from .exceptions import Features, RequestError, UnsupportedRequest
 
 # typing
 if typing.TYPE_CHECKING:
