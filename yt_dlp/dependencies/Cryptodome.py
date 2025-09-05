@@ -1,6 +1,9 @@
 from __future__ import absolute_import
 from __future__ import unicode_literals
-from ..compat.compat_utils import passthrough_module
+
+class DummyModule:
+    def __init__(self, name):
+        self.__name__ = name
 
 try:
     import Cryptodome as _parent
@@ -8,10 +11,8 @@ except ImportError:
     try:
         import Crypto as _parent
     except (ImportError, SyntaxError):  # Old Crypto gives SyntaxError in newer Python
-        _parent = passthrough_module(__name__, u'no_Cryptodome')
+        _parent = DummyModule('no_Cryptodome')
         __bool__ = lambda: False
-
-del passthrough_module
 
 __version__ = u''
 AES = PKCS1_v1_5 = Blowfish = PKCS1_OAEP = SHA1 = CMAC = RSA = None
