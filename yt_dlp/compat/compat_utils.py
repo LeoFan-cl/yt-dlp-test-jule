@@ -21,7 +21,7 @@ def get_package_info(module):
 
 
 def _is_package(module):
-    return '__path__' in vars(module)
+    return hasattr(module, '__path__')
 
 
 def _is_dunder(name):
