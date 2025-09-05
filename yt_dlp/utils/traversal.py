@@ -12,7 +12,6 @@ except ImportError:
 import inspect
 import itertools
 import re
-import typing
 import xml.etree.ElementTree
 
 

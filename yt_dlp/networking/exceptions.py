@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-import typing
+from ..dependencies import typing
 
 from itertools import ifilter
 

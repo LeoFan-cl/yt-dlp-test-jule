@@ -36,10 +36,9 @@ import sys
 import tempfile
 import time
 import traceback
-import types
 import unicodedata
 import xml.etree.ElementTree
-import enum
+from ..dependencies import enum
 
 from . import traversal
 
