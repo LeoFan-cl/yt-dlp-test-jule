@@ -18,7 +18,6 @@ from urllib2 import (
 
 from ..dependencies import brotli
 from .common import (
-    Features,
     Request,
     RequestHandler,
     Response,
@@ -26,6 +25,7 @@ from .common import (
 )
 from .exceptions import (
     CertificateVerifyError,
+    Features,
     HTTPError,
     IncompleteRead,
     ProxyError,

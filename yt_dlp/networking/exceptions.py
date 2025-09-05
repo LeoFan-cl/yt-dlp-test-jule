@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from ..dependencies import typing
+from ..dependencies import enum, typing
 
 from itertools import ifilter
 
@@ -110,6 +110,14 @@ class ProxyError(TransportError):
 class CertificateVerifyError(SSLError):
     u"""Raised when certificate validated has failed"""
     pass
+
+
+class Features(enum.Enum):
+    TO_STDOUT = 1
+    MULTIPLE_FORMATS = 2
+    NO_PROXY = 3
+    ALL_PROXY = 4
+
 
 network_exceptions = (
     RequestError,
