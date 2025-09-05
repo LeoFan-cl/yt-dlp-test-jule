@@ -3,7 +3,7 @@ from __future__ import absolute_import
 import abc
 import functools
 import io
-import typing
+from ..dependencies import typing
 import urlparse
 import urllib2
 from collections import Iterable, Mapping
