@@ -2,8 +2,17 @@ from __future__ import absolute_import
 
 import typing
 
-from ..utils import YoutubeDLError
 from itertools import ifilter
+
+class YoutubeDLError(Exception):
+    msg = None
+
+    def __init__(self, msg=None):
+        if msg is not None:
+            self.msg = msg
+        elif self.msg is None:
+            self.msg = type(self).__name__
+        super(YoutubeDLError, self).__init__(self.msg)
 
 if typing.TYPE_CHECKING:
     from .common import RequestHandler, Response
@@ -101,3 +110,15 @@ class ProxyError(TransportError):
 class CertificateVerifyError(SSLError):
     u"""Raised when certificate validated has failed"""
     pass
+
+network_exceptions = (
+    RequestError,
+    UnsupportedRequest,
+    NoSupportingHandlers,
+    TransportError,
+    HTTPError,
+    SSLError,
+    IncompleteRead,
+    ProxyError,
+    CertificateVerifyError,
+)

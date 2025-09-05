@@ -8,7 +8,7 @@ import zlib
 from ._utils import Popen, decode_base_n, preferredencoding
 from .traversal import traverse_obj
 from ..dependencies import certifi, websockets
-from ..networking._helper import make_ssl_context
+from ..networking._helper import create_ssl_context as make_ssl_context
 from ..networking._urllib import HTTPHandler
 
 # isort: split

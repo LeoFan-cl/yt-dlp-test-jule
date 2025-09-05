@@ -16,7 +16,6 @@ from urllib2 import (
     UnknownHandler,
 )
 
-from ..compat import compat_urllib_request
 from ..dependencies import brotli
 from .common import (
     Features,
@@ -341,6 +340,7 @@ class UrllibRH(RequestHandler, InstanceStoreMixin):
         extensions.pop(u'legacy_ssl', None)
 
     def _create_instance(self, proxies, cookiejar, legacy_ssl_support=None):
+        from ..compat import compat_urllib_request
         opener = OpenerDirector()
         handlers = [
             ProxyHandler(proxies),

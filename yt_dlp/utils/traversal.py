@@ -5,39 +5,22 @@ except ImportError:
     import collections as collections_abc
 import contextlib
 import functools
-import http.cookies
+try:
+    import http.cookies
+except ImportError:
+    import Cookie as http_cookies
 import inspect
 import itertools
 import re
 import typing
 import xml.etree.ElementTree
 
-from ._utils import (
-    IDENTITY,
-    NO_DEFAULT,
-    ExtractorError,
-    LazyList,
-    deprecation_warning,
-    get_elements_html_by_class,
-    get_elements_html_by_attribute,
-    get_elements_by_attribute,
-    get_element_by_class,
-    get_element_html_by_attribute,
-    get_element_by_attribute,
-    get_element_html_by_id,
-    get_element_by_id,
-    get_element_html_by_class,
-    get_elements_by_class,
-    get_element_text_and_html_by_tag,
-    is_iterable_like,
-    try_call,
-    url_or_none,
-    variadic,
-)
 
 
 def traverse_obj(
         obj, *paths, **kwargs):
+    from ._utils import deprecation_warning
+    from ._common import NO_DEFAULT
     default = kwargs.get('default', NO_DEFAULT)
     expected_type = kwargs.get('expected_type')
     get_all = kwargs.get('get_all', True)
@@ -111,14 +94,21 @@ def traverse_obj(
     if is_user_input is not NO_DEFAULT:
         deprecation_warning('The is_user_input parameter is deprecated and no longer works')
 
+    from ._utils import ExtractorError
+
+    class _RequiredError(ExtractorError):
+        pass
+
     casefold = lambda k: k.casefold() if isinstance(k, str) else k
 
     if isinstance(expected_type, type):
         type_test = lambda val: val if isinstance(val, expected_type) else None
     else:
+        from ._utils import IDENTITY, try_call
         type_test = lambda val: try_call(expected_type or IDENTITY, args=(val,))
 
     def apply_key(key, obj, is_last):
+        from ._common import is_iterable_like, try_call
         branching = False
         result = None
 
@@ -146,7 +136,7 @@ def traverse_obj(
 
         elif key is Ellipsis:
             branching = True
-            if isinstance(obj, http.cookies.Morsel):
+            if isinstance(obj, http_cookies.Morsel):
                 obj = dict(obj, key=obj.key, value=obj.value)
             if isinstance(obj, collections.abc.Mapping):
                 result = obj.values()
@@ -164,19 +154,19 @@ def traverse_obj(
             branching = True
             if isinstance(obj, http.cookies.Morsel):
                 obj = dict(obj, key=obj.key, value=obj.value)
-        if isinstance(obj, collections_abc.Mapping):
-            iter_obj = obj.items()
-        elif is_iterable_like(obj) or isinstance(obj, xml.etree.ElementTree.Element):
-            iter_obj = enumerate(obj)
-        elif isinstance(obj, re.Match):
-            iter_obj = itertools.chain(
-                enumerate((obj.group(),) + obj.groups()),
-                obj.groupdict().items())
-        elif traverse_string:
-            branching = False
-            iter_obj = enumerate(str(obj))
-        else:
-            iter_obj = ()
+            if isinstance(obj, collections_abc.Mapping):
+                iter_obj = obj.items()
+            elif is_iterable_like(obj) or isinstance(obj, xml.etree.ElementTree.Element):
+                iter_obj = enumerate(obj)
+            elif isinstance(obj, re.Match):
+                iter_obj = itertools.chain(
+                    enumerate((obj.group(),) + obj.groups()),
+                    obj.groupdict().items())
+            elif traverse_string:
+                branching = False
+                iter_obj = enumerate(str(obj))
+            else:
+                iter_obj = ()
 
             result = (v for k, v in iter_obj if try_call(key, args=(k, v)))
             if not branching:  # string traversal
@@ -243,6 +233,8 @@ def traverse_obj(
         return branching, result if branching else (result,)
 
     def lazy_last(iterable):
+        from ._utils import variadic
+        from ._common import NO_DEFAULT
         iterator = iter(iterable)
         prev = next(iterator, NO_DEFAULT)
         if prev is NO_DEFAULT:
@@ -294,6 +286,7 @@ def traverse_obj(
         return objs, has_branched, isinstance(key, dict)
 
     def _traverse_obj(obj, path, allow_empty, test_type):
+        from ._utils import LazyList
         results, has_branched, is_dict = apply_path(obj, path, test_type)
         results = LazyList(item for item in results if item not in (None, {}))
         if get_all and has_branched:
@@ -334,11 +327,10 @@ def require(name, **kwargs):
     return func
 
 
-class _RequiredError(ExtractorError):
-    pass
 
 
 def subs_list_to_dict(subs=None, **kwargs):
+    from ._utils import url_or_none
     lang = kwargs.get('lang', 'und')
     ext = kwargs.get('ext')
     """
@@ -381,6 +373,11 @@ def subs_list_to_dict(subs=None, **kwargs):
 
 
 def find_element(**kwargs):
+    from ._utils import (
+        get_element_html_by_attribute, get_element_by_attribute,
+        get_element_html_by_class, get_element_by_class,
+        get_element_html_by_id, get_element_by_id,
+        get_element_text_and_html_by_tag)
     tag = kwargs.get('tag')
     id = kwargs.get('id')
     cls = kwargs.get('cls')
@@ -414,6 +411,9 @@ def find_element(**kwargs):
 
 
 def find_elements(**kwargs):
+    from ._utils import (
+        get_elements_html_by_attribute, get_elements_by_attribute,
+        get_elements_html_by_class, get_elements_by_class)
     tag = kwargs.get('tag')
     cls = kwargs.get('cls')
     attr = kwargs.get('attr')
@@ -459,10 +459,12 @@ def unpack(func, **kwargs):
 
 
 def get_first(obj, *paths, **kwargs):
-    return traverse_obj(obj, *list((Ellipsis,) + variadic(keys) for keys in paths), **kwargs)
+    from ._utils import variadic
+    return traverse_obj(obj, *list((Ellipsis,) + tuple(variadic(keys)) for keys in paths), **kwargs)
 
 
 def dict_get(d, key_or_keys, default=None, skip_false_values=True):
+    from ._utils import variadic
     for val in map(d.get, variadic(key_or_keys)):
         if val is not None and (val or not skip_false_values):
             return val

@@ -39,28 +39,19 @@ import traceback
 import types
 import unicodedata
 import xml.etree.ElementTree
-from ..dependencies import enum
+import enum
 
 from . import traversal
 
-from ..compat._legacy import (
-    compat_etree_fromstring,
-    compat_expanduser,
-    compat_HTMLParseError,
-    compat_urllib_parse as urllib_parse,
-    compat_urllib_request as urllib_request,
-    compat_urllib_error as urllib_error,
-    compat_html_entities as html_entities,
-    compat_html_parser as html_parser,
-)
 from ..dependencies import xattr
 from ..globals import IN_CLI, WINDOWS_VT_MODE
+from ._decorators import (
+    _functools_cache, _getargspec, partial_application,
+    cached_method, function_with_repr)
+from ._common import NO_DEFAULT, is_iterable_like, try_call
+from ..networking.exceptions import YoutubeDLError
 
 __name__ = __name__.rsplit('.', 1)[0]  # noqa: A001 # Pretend to be the parent module
-
-
-class NO_DEFAULT(object):
-    pass
 
 
 def IDENTITY(x):
@@ -121,18 +112,6 @@ JSON_LD_RE = r'(?is)<script[^>]+type=(["\']?)application/ld\+json\1[^>]*>\s*(?P<
 NUMBER_RE = r'\d+(?:\.\d+)?'
 
 
-def _functools_cache(func):
-    cache = {}
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        key = (args, frozenset(kwargs.items()))
-        if key not in cache:
-            cache[key] = func(*args, **kwargs)
-        return cache[key]
-    return wrapper
-
-
 @_functools_cache
 def preferredencoding():
     try:
@@ -162,24 +141,6 @@ def write_json_file(obj, fn):
         with contextlib.suppress(OSError):
             os.remove(tf.name)
         raise
-
-
-def _getargspec(func):
-    if sys.version_info >= (3, 0):
-        return inspect.getfullargspec(func)
-    return inspect.getargspec(func)
-
-
-def partial_application(func):
-    argspec = _getargspec(func)
-    required_args = argspec.args[:-len(argspec.defaults or [])]
-
-    @functools.wraps(func)
-    def wrapped(*args, **kwargs):
-        if set(required_args[len(args):]).difference(kwargs.keys()):
-            return functools.partial(func, *args, **kwargs)
-        return func(*args, **kwargs)
-    return wrapped
 
 
 def find_xpath_attr(node, xpath, key, val=None):
@@ -323,40 +284,41 @@ def get_elements_text_and_html_by_attribute(attribute, value, html, **kargs):
         )
 
 
-class HTMLBreakOnClosingTagParser(html_parser.HTMLParser):
-    class HTMLBreakOnClosingTagException(Exception):
-        pass
-
-    def __init__(self):
-        self.tagstack = collections.deque()
-        html_parser.HTMLParser.__init__(self)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *_):
-        self.close()
-
-    def close(self):
-        pass
-
-    def handle_starttag(self, tag, _):
-        self.tagstack.append(tag)
-
-    def handle_endtag(self, tag):
-        if not self.tagstack:
-            raise compat_HTMLParseError('no tags in the stack')
-        while self.tagstack:
-            inner_tag = self.tagstack.pop()
-            if inner_tag == tag:
-                break
-        else:
-            raise compat_HTMLParseError('matching opening tag for closing {0} tag not found'.format(tag))
-        if not self.tagstack:
-            raise self.HTMLBreakOnClosingTagException
-
-
 def get_element_text_and_html_by_tag(tag, html):
+    from ..compat import compat_HTMLParseError
+
+    class HTMLBreakOnClosingTagParser(html_parser.HTMLParser):
+        class HTMLBreakOnClosingTagException(Exception):
+            pass
+
+        def __init__(self):
+            self.tagstack = collections.deque()
+            html_parser.HTMLParser.__init__(self)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            self.close()
+
+        def close(self):
+            pass
+
+        def handle_starttag(self, tag, _):
+            self.tagstack.append(tag)
+
+        def handle_endtag(self, tag):
+            if not self.tagstack:
+                raise compat_HTMLParseError('no tags in the stack')
+            while self.tagstack:
+                inner_tag = self.tagstack.pop()
+                if inner_tag == tag:
+                    break
+            else:
+                raise compat_HTMLParseError('matching opening tag for closing {0} tag not found'.format(tag))
+            if not self.tagstack:
+                raise self.HTMLBreakOnClosingTagException
+
     def find_or_raise(haystack, needle, exc):
         try:
             return haystack.index(needle)
@@ -387,40 +349,44 @@ def get_element_text_and_html_by_tag(tag, html):
         raise compat_HTMLParseError('unexpected end of html')
 
 
-class HTMLAttributeParser(html_parser.HTMLParser):
-    def __init__(self):
-        self.attrs = {}
-        html_parser.HTMLParser.__init__(self)
-
-    def handle_starttag(self, tag, attrs):
-        self.attrs = dict(attrs)
-        raise compat_HTMLParseError('done')
-
-
-class HTMLListAttrsParser(html_parser.HTMLParser):
-    def __init__(self):
-        html_parser.HTMLParser.__init__(self)
-        self.items = []
-        self._level = 0
-
-    def handle_starttag(self, tag, attrs):
-        if tag == 'li' and self._level == 0:
-            self.items.append(dict(attrs))
-        self._level += 1
-
-    def handle_endtag(self, tag):
-        self._level -= 1
-
-
 def extract_attributes(html_element):
+    from ..compat import compat_HTMLParseError
+
+    class HTMLAttributeParser(html_parser.HTMLParser):
+        def __init__(self):
+            self.attrs = {}
+            html_parser.HTMLParser.__init__(self)
+
+        def handle_starttag(self, tag, attrs):
+            self.attrs = dict(attrs)
+            raise compat_HTMLParseError('done')
+
     parser = HTMLAttributeParser()
-    with contextlib.suppress(compat_HTMLParseError):
+    try:
         parser.feed(html_element)
         parser.close()
+    except compat_HTMLParseError:
+        pass
     return parser.attrs
 
 
 def parse_list(webpage):
+    from ..compat._legacy import compat_HTMLParser as html_parser
+
+    class HTMLListAttrsParser(html_parser.HTMLParser):
+        def __init__(self):
+            html_parser.HTMLParser.__init__(self)
+            self.items = []
+            self._level = 0
+
+        def handle_starttag(self, tag, attrs):
+            if tag == 'li' and self._level == 0:
+                self.items.append(dict(attrs))
+            self._level += 1
+
+        def handle_endtag(self, tag):
+            self._level -= 1
+
     parser = HTMLListAttrsParser()
     parser.feed(webpage)
     parser.close()
@@ -615,6 +581,7 @@ def sanitize_url(url, scheme='http'):
 
 
 def extract_basic_auth(url):
+    from ..compat._legacy import compat_urllib_parse as urllib_parse
     parts = urllib_parse.urlsplit(url)
     if parts.username is None:
         return url, None
@@ -627,6 +594,7 @@ def extract_basic_auth(url):
 
 
 def expand_path(s):
+    from ..compat import compat_expanduser
     return os.path.expandvars(compat_expanduser(s))
 
 
@@ -641,6 +609,7 @@ def orderedSet(iterable, lazy=False):
 
 
 def _htmlentity_transform(entity_with_semicolon):
+    from ..compat._legacy import compat_html_entities as html_entities, compat_chr as unichr
     entity = entity_with_semicolon[:-1]
     if entity in html_entities.name2codepoint:
         return unichr(html_entities.name2codepoint[entity])
@@ -793,17 +762,6 @@ def bug_reports_message(before=';'):
     if not before or before.endswith(('.', '!', '?')):
         msg = msg[0].title() + msg[1:]
     return (before + ' ' if before else '') + msg
-
-
-class YoutubeDLError(Exception):
-    msg = None
-
-    def __init__(self, msg=None):
-        if msg is not None:
-            self.msg = msg
-        elif self.msg is None:
-            self.msg = type(self).__name__
-        super(YoutubeDLError, self).__init__(self.msg)
 
 
 class ExtractorError(YoutubeDLError):
@@ -1368,8 +1326,8 @@ def get_filesystem_encoding():
     return encoding if encoding is not None else 'utf-8'
 
 
-_WINDOWS_QUOTE_TRANS = dict(zip(map(ord, '"'), map(ord, R'\"')))
-_CMD_QUOTE_TRANS = dict(zip(map(ord, '"\n\r%'), map(ord, ('""', '%=%', '%=%', '%%cd:~,%'))))
+_WINDOWS_QUOTE_TRANS = dict(zip(map(ord, '"'), R'\"'))
+_CMD_QUOTE_TRANS = dict(zip(map(ord, '"\n\r%'), ('""', '%=%', '%=%', '%%cd:~,%')))
 
 
 def shell_quote(args, shell=False):
@@ -1385,6 +1343,7 @@ def shell_quote(args, shell=False):
 
 
 def smuggle_url(url, data):
+    from ..compat._legacy import compat_urllib_parse as urllib_parse
     url, idata = unsmuggle_url(url, {})
     data.update(idata)
     sdata = urllib_parse.urlencode(
@@ -1393,6 +1352,7 @@ def smuggle_url(url, data):
 
 
 def unsmuggle_url(smug_url, default=None):
+    from ..compat._legacy import compat_urllib_parse as urllib_parse
     if '#__youtubedl_smuggle' not in smug_url:
         return smug_url, default
     url, _, sdata = smug_url.rpartition('#')
@@ -1573,20 +1533,24 @@ def remove_quotes(s):
 
 
 def get_domain(url):
+    from ..compat._legacy import compat_urllib_parse as urllib_parse
     return remove_start(urllib_parse.urlparse(url).netloc, 'www.') or None
 
 
 def url_basename(url):
+    from ..compat._legacy import compat_urllib_parse as urllib_parse
     path = urllib_parse.urlparse(url).path
     return path.strip('/').split('/')[-1]
 
 
 def base_url(url):
+    from ..compat._legacy import compat_urllib_parse as urllib_parse
     return re.match(r'https?://[^?#]+/', url).group()
 
 
 @partial_application
 def urljoin(base, path):
+    from ..compat._legacy import compat_urllib_parse as urllib_parse
     if isinstance(path, bytes):
         path = path.decode()
     if not isinstance(path, str) or not path:
@@ -2093,6 +2057,7 @@ def lowercase_escape(s):
 
 
 def parse_qs(url, **kwargs):
+    from ..compat._legacy import compat_urllib_parse as urllib_parse
     return urllib_parse.parse_qs(urllib_parse.urlparse(url).query, **kwargs)
 
 
@@ -2113,11 +2078,13 @@ def read_batch_urls(batch_fd):
 
 
 def urlencode_postdata(*args, **kargs):
+    from ..compat._legacy import compat_urllib_parse as urllib_parse
     return urllib_parse.urlencode(*args, **kargs).encode('ascii')
 
 
 @partial_application
 def update_url(url, query_update=None, **kwargs):
+    from ..compat._legacy import compat_urllib_parse as urllib_parse
     if isinstance(url, str):
         if not kwargs and not query_update:
             return url
@@ -2168,31 +2135,11 @@ def multipart_encode(data, boundary=None):
     return out, content_type
 
 
-def is_iterable_like(x, allowed_types=collections.Iterable, blocked_types=NO_DEFAULT):
-    if blocked_types is NO_DEFAULT:
-        blocked_types = (str, bytes, collections.Mapping)
-    return isinstance(x, allowed_types) and not isinstance(x, blocked_types)
-
-
 def variadic(x, allowed_types=NO_DEFAULT):
     if not isinstance(allowed_types, (tuple, type)):
         deprecation_warning('allowed_types should be a tuple or a type')
         allowed_types = tuple(allowed_types)
     return x if is_iterable_like(x, blocked_types=allowed_types) else (x, )
-
-
-def try_call(*funcs, **kwargs):
-    expected_type = kwargs.get('expected_type')
-    args = kwargs.get('args', [])
-    kwargs = kwargs.get('kwargs', {})
-    for f in funcs:
-        try:
-            val = f(*args, **kwargs)
-        except (AttributeError, KeyError, TypeError, IndexError, ValueError, ZeroDivisionError):
-            pass
-        else:
-            if expected_type is None or isinstance(val, expected_type):
-                return val
 
 
 def try_get(src, getter, expected_type=None):
@@ -2261,9 +2208,9 @@ def js_to_json(code, vars={}, strict=False):
     def process_escape(match):
         JSON_PASSTHROUGH_ESCAPES = r'"\bfnrtu'
         escape = match.group(1) or match.group(2)
-        return (r'\{0}'.format(escape) if escape in JSON_PASSTHROUGH_ESCAPES
+        return (u'\\{0}'.format(escape) if escape in JSON_PASSTHROUGH_ESCAPES
                 else u'\\u00' if escape == 'x'
-                else '' if escape == '\n'
+                else u'' if escape == '\n'
                 else escape)
 
     def template_substitute(match):
@@ -2553,6 +2500,7 @@ def is_html(first_bytes):
 
 
 def determine_protocol(info_dict):
+    from ..compat._legacy import compat_urllib_parse as urllib_parse
     protocol = info_dict.get('protocol')
     if protocol is not None:
         return protocol
@@ -2755,6 +2703,7 @@ def ass_subtitles_timecode(seconds):
 
 
 def dfxp2srt(dfxp_data):
+    from ..compat import compat_etree_fromstring
     LEGACY_NAMESPACES = (
         (b'http://www.w3.org/ns/ttml', [
             b'http://www.w3.org/2004/11/ttaf1', b'http://www.w3.org/2006/04/ttaf1',
@@ -3368,6 +3317,7 @@ LINK_TEMPLATES = {
 
 
 def iri_to_uri(iri):
+    from ..compat._legacy import compat_urllib_parse as urllib_parse
     iri_parts = urllib_parse.urlparse(iri)
     if '[' in iri_parts.netloc:
         raise ValueError('IPv6 URIs are not, yet, supported.')
@@ -3571,7 +3521,7 @@ def determine_file_encoding(data):
         if data.startswith(bom):
             return enc, len(bom)
     data = data.replace(b'\0', b'')
-    mobj = re.match(b'(?m)^#\\s*coding\\s*:\\s*(\\S+)\\s*$', data)
+    mobj = re.match(r'(?m)^#\s*coding\s*:\s*(\S+)\s*$', data)
     return mobj.group(1).decode() if mobj else None, 0
 
 

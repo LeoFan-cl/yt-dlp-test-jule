@@ -7,11 +7,11 @@ from collections import defaultdict
 
 
 class Indirect:
-    def __init__(self, initial, /):
+    def __init__(self, initial):
         self.value = initial
 
-    def __repr__(self, /):
-        return f'{type(self).__name__}({self.value!r})'
+    def __repr__(self):
+        return '{0}({1!r})'.format(type(self).__name__, self.value)
 
 
 postprocessors = Indirect({})

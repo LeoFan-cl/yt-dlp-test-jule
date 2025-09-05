@@ -11,10 +11,9 @@ import urllib
 
 from .exceptions import RequestError
 from ..dependencies import certifi
-from ..utils import network_exceptions
-from ..compat import compat_os_name
+from .exceptions import network_exceptions
 
-if compat_os_name == u'nt':
+if os.name == u'nt':
     from ..dependencies import socks
     if socks:
         from socks import (

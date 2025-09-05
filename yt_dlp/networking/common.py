@@ -11,13 +11,13 @@ from email.message import Message
 
 from ..utils import (
     bug_reports_message,
-    classproperty,
     deprecation_warning,
     error_to_str,
     HTTPHeaderDict,
     network_exceptions,
     update_url_query,
 )
+from ..utils._decorators import classproperty
 from .exceptions import RequestError, UnsupportedRequest
 
 # typing
