@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import collections
 import contextlib
 import functools
@@ -33,7 +34,7 @@ class EnhancedModule(types.ModuleType):
 
     def __getattribute__(self, attr):
         try:
-            ret = super().__getattribute__(attr)
+            ret = super(EnhancedModule, self).__getattribute__(attr)
         except AttributeError:
             if _is_dunder(attr):
                 raise
@@ -47,13 +48,13 @@ class EnhancedModule(types.ModuleType):
 def passthrough_module(parent, child, allowed_attributes=(None, ), callback=lambda _: None):
     """Passthrough parent module into a child module, creating the parent if necessary"""
     def __getattr__(attr):
-        if _is_package(parent):
+        if _is_package(sys.modules[parent]):
             with contextlib.suppress(ModuleNotFoundError):
-                return importlib.import_module('.%s' % attr, parent.__name__)
+                return importlib.import_module('.%s' % attr, parent)
 
         ret = from_child(attr)
         if ret is _NO_ATTRIBUTE:
-            raise AttributeError('module %s has no attribute %s' % (parent.__name__, attr))
+            raise AttributeError('module %s has no attribute %s' % (parent, attr))
         callback(attr)
         return ret
 
@@ -65,11 +66,11 @@ def passthrough_module(parent, child, allowed_attributes=(None, ), callback=lamb
                 return _NO_ATTRIBUTE
 
         if isinstance(child_ref[0], str):
-            child_ref[0] = importlib.import_module(child_ref[0], parent.__name__)
+            child_ref[0] = importlib.import_module(child_ref[0], parent)
 
         if _is_package(child_ref[0]):
             with contextlib.suppress(ImportError):
-                return passthrough_module('%s.%s' % (parent.__name__, attr),
+                return passthrough_module('%s.%s' % (parent, attr),
                                           importlib.import_module('.%s' % attr, child_ref[0].__name__))
 
         with contextlib.suppress(AttributeError):
@@ -77,7 +78,15 @@ def passthrough_module(parent, child, allowed_attributes=(None, ), callback=lamb
 
         return _NO_ATTRIBUTE
 
-    parent = sys.modules.get(parent, types.ModuleType(parent))
-    parent.__class__ = EnhancedModule
-    parent.__getattr__ = __getattr__
-    return parent
+    original_module = sys.modules.get(parent)
+    if original_module and isinstance(original_module, EnhancedModule):
+        return original_module
+
+    new_module = EnhancedModule(parent)
+    if original_module:
+        for attr, value in vars(original_module).items():
+            setattr(new_module, attr, value)
+
+    new_module.__getattr__ = __getattr__
+    sys.modules[parent] = new_module
+    return new_module

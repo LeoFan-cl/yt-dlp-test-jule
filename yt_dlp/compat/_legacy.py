@@ -13,6 +13,7 @@ import getpass
 import itertools
 import os
 import shlex
+import shutil
 import socket
 import struct
 import subprocess
@@ -27,40 +28,41 @@ from .compat_utils import passthrough_module
 
 passthrough_module(__name__, u'...utils', (u'windows_enable_vt_mode',))
 
-try:
+if sys.version_info[0] >= 3:
     # Python 3
-    import htmlentitydefs as compat_html_entities
-    import HTMLParser as compat_html_parser
-    import httplib as compat_http_client
-    import cookielib as compat_cookiejar
-    import Cookie as compat_cookies
+    import html.entities as compat_html_entities
+    from html.parser import HTMLParser as compat_HTMLParser
+    import http.client as compat_http_client
+    import http.cookiejar as compat_cookiejar
+    import http.cookies as compat_cookies
     import http.server as compat_http_server
     import urllib.error as compat_urllib_error
     import urllib.parse as compat_urllib_parse
     import urllib.request as compat_urllib_request
     import urllib.response as compat_urllib_response
 
-    compat_basestring = unicode
-    compat_chr = unichr
+    compat_basestring = str
+    compat_chr = chr
     compat_input = input
-    compat_str = unicode
+    compat_str = str
     compat_urllib_parse_urlparse = compat_urllib_parse.urlparse
     compat_urllib_parse_urlencode = compat_urllib_parse.urlencode
     compat_urllib_parse_unquote = compat_urllib_parse.unquote
     compat_urllib_parse_unquote_plus = compat_urllib_parse.unquote_plus
     compat_urllib_parse_parse_qs = compat_urllib_parse.parse_qs
     compat_urllib_request_urlretrieve = compat_urllib_request.urlretrieve
-    compat_HTMLParser = compat_html_parser.HTMLParser
     compat_cookiejar_Cookie = compat_cookiejar.Cookie
     compat_cookies_SimpleCookie = compat_cookies.SimpleCookie
     compat_http_client_HTTPException = compat_http_client.HTTPException
+    compat_get_terminal_size = shutil.get_terminal_size
 
-except ImportError:
+else:
     # Python 2
     import BaseHTTPServer as compat_http_server
     import Cookie as compat_cookies
     import cookielib as compat_cookiejar
     import htmlentitydefs as compat_html_entities
+    from HTMLParser import HTMLParser as compat_HTMLParser
     import httplib as compat_http_client
     import urllib
     import urllib2
@@ -81,15 +83,22 @@ except ImportError:
     compat_urllib_parse_unquote_plus = urllib.unquote_plus
     compat_urllib_parse_parse_qs = urlparse.parse_qs
     compat_urllib_request_urlretrieve = urllib.urlretrieve
-    from HTMLParser import HTMLParser as compat_HTMLParser
     compat_cookiejar_Cookie = compat_cookiejar.Cookie
     compat_cookies_SimpleCookie = compat_cookies.SimpleCookie
     compat_http_client_HTTPException = compat_http_client.HTTPException
 
+    def compat_get_terminal_size(fallback=(80, 24)):
+        try:
+            import fcntl, termios
+            # STDOUT_FILENO = 1
+            hw = struct.unpack('hh', fcntl.ioctl(1, termios.TIOCGWINSZ, '1234'))
+            return hw[1], hw[0]
+        except:
+            return fallback
+
 
 compat_casefold = compat_str.casefold
 compat_collections_abc = collections
-compat_get_terminal_size = shutil.get_terminal_size
 compat_getenv = os.getenv
 compat_getpass = compat_getpass_getpass = getpass.getpass
 compat_html_entities_html5 = compat_html_entities.html5
