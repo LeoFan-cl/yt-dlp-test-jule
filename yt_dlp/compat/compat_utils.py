@@ -2,6 +2,13 @@ from __future__ import absolute_import
 import collections
 import contextlib
 import functools
+
+@contextlib.contextmanager
+def suppress(*exceptions):
+    try:
+        yield
+    except exceptions:
+        pass
 import importlib
 import sys
 import types
@@ -49,7 +56,7 @@ def passthrough_module(parent, child, allowed_attributes=(None, ), callback=lamb
     """Passthrough parent module into a child module, creating the parent if necessary"""
     def __getattr__(attr):
         if _is_package(sys.modules[parent]):
-            with contextlib.suppress(ModuleNotFoundError):
+            with suppress(ImportError):
                 return importlib.import_module('.%s' % attr, parent)
 
         ret = from_child(attr)
@@ -69,11 +76,11 @@ def passthrough_module(parent, child, allowed_attributes=(None, ), callback=lamb
             child_ref[0] = importlib.import_module(child_ref[0], parent)
 
         if _is_package(child_ref[0]):
-            with contextlib.suppress(ImportError):
+            with suppress(ImportError):
                 return passthrough_module('%s.%s' % (parent, attr),
                                           importlib.import_module('.%s' % attr, child_ref[0].__name__))
 
-        with contextlib.suppress(AttributeError):
+        with suppress(AttributeError):
             return getattr(child_ref[0], attr)
 
         return _NO_ATTRIBUTE
