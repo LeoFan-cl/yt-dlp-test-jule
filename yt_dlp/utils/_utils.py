@@ -2262,7 +2262,7 @@ def js_to_json(code, vars={}, strict=False):
         JSON_PASSTHROUGH_ESCAPES = r'"\bfnrtu'
         escape = match.group(1) or match.group(2)
         return (r'\{0}'.format(escape) if escape in JSON_PASSTHROUGH_ESCAPES
-                else r'\u00' if escape == 'x'
+                else u'\\u00' if escape == 'x'
                 else '' if escape == '\n'
                 else escape)
 
@@ -3571,7 +3571,7 @@ def determine_file_encoding(data):
         if data.startswith(bom):
             return enc, len(bom)
     data = data.replace(b'\0', b'')
-    mobj = re.match(rb'(?m)^#\s*coding\s*:\s*(\S+)\s*$', data)
+    mobj = re.match(b'(?m)^#\\s*coding\\s*:\\s*(\\S+)\\s*$', data)
     return mobj.group(1).decode() if mobj else None, 0
 
 

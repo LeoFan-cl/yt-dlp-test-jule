@@ -1,7 +1,8 @@
-from __future__ import annotations
-
 import collections
-import collections.abc
+try:
+    import collections.abc as collections_abc
+except ImportError:
+    import collections as collections_abc
 import contextlib
 import functools
 import http.cookies
@@ -36,8 +37,13 @@ from ._utils import (
 
 
 def traverse_obj(
-        obj, *paths, default=NO_DEFAULT, expected_type=None, get_all=True,
-        casesense=True, is_user_input=NO_DEFAULT, traverse_string=False):
+        obj, *paths, **kwargs):
+    default = kwargs.get('default', NO_DEFAULT)
+    expected_type = kwargs.get('expected_type')
+    get_all = kwargs.get('get_all', True)
+    casesense = kwargs.get('casesense', True)
+    is_user_input = kwargs.get('is_user_input', NO_DEFAULT)
+    traverse_string = kwargs.get('traverse_string', False)
     """
     Safely traverse nested `dict`s and `Iterable`s
 
@@ -117,7 +123,7 @@ def traverse_obj(
         result = None
 
         if obj is None and traverse_string:
-            if key is ... or callable(key) or isinstance(key, slice):
+            if key is Ellipsis or callable(key) or isinstance(key, slice):
                 branching = True
                 result = ()
 
@@ -138,7 +144,7 @@ def traverse_obj(
             result = itertools.chain.from_iterable(
                 apply_path(obj, branch, is_last)[0] for branch in key)
 
-        elif key is ...:
+        elif key is Ellipsis:
             branching = True
             if isinstance(obj, http.cookies.Morsel):
                 obj = dict(obj, key=obj.key, value=obj.value)
@@ -158,19 +164,19 @@ def traverse_obj(
             branching = True
             if isinstance(obj, http.cookies.Morsel):
                 obj = dict(obj, key=obj.key, value=obj.value)
-            if isinstance(obj, collections.abc.Mapping):
-                iter_obj = obj.items()
-            elif is_iterable_like(obj) or isinstance(obj, xml.etree.ElementTree.Element):
-                iter_obj = enumerate(obj)
-            elif isinstance(obj, re.Match):
-                iter_obj = itertools.chain(
-                    enumerate((obj.group(), *obj.groups())),
-                    obj.groupdict().items())
-            elif traverse_string:
-                branching = False
-                iter_obj = enumerate(str(obj))
-            else:
-                iter_obj = ()
+        if isinstance(obj, collections_abc.Mapping):
+            iter_obj = obj.items()
+        elif is_iterable_like(obj) or isinstance(obj, xml.etree.ElementTree.Element):
+            iter_obj = enumerate(obj)
+        elif isinstance(obj, re.Match):
+            iter_obj = itertools.chain(
+                enumerate((obj.group(),) + obj.groups()),
+                obj.groupdict().items())
+        elif traverse_string:
+            branching = False
+            iter_obj = enumerate(str(obj))
+        else:
+            iter_obj = ()
 
             result = (v for k, v in iter_obj if try_call(key, args=(k, v)))
             if not branching:  # string traversal
@@ -214,9 +220,9 @@ def traverse_obj(
 
             # Allow abbreviations of relative paths, absolute paths error
             if xpath.startswith('/'):
-                xpath = f'.{xpath}'
+                xpath = '.{0}'.format(xpath)
             elif xpath and not xpath.startswith('./'):
-                xpath = f'./{xpath}'
+                xpath = './{0}'.format(xpath)
 
             def apply_specials(element):
                 if special is None:
@@ -227,7 +233,7 @@ def traverse_obj(
                     return try_call(element.attrib.get, args=(special[1:],))
                 if special == 'text()':
                     return element.text
-                raise SyntaxError(f'apply_specials is missing case for {special!r}')
+                raise SyntaxError('apply_specials is missing case for {0!r}'.format(special))
 
             if xpath:
                 result = list(map(apply_specials, obj.iterfind(xpath)))
@@ -308,19 +314,20 @@ def traverse_obj(
         except _RequiredError as e:
             if is_last:
                 # Reraise to get cleaner stack trace
-                raise ExtractorError(e.orig_msg, expected=e.expected) from None
+                raise ExtractorError(e.orig_msg, expected=e.expected)
 
     return None if default is NO_DEFAULT else default
 
 
-def value(value, /):
+def value(value):
     return lambda _: value
 
 
-def require(name, /, *, expected=False):
+def require(name, **kwargs):
+    expected = kwargs.get('expected', False)
     def func(value):
         if value is None:
-            raise _RequiredError(f'Unable to extract {name}', expected=expected)
+            raise _RequiredError('Unable to extract {0}'.format(name), expected=expected)
 
         return value
 
@@ -331,15 +338,9 @@ class _RequiredError(ExtractorError):
     pass
 
 
-@typing.overload
-def subs_list_to_dict(*, lang: str | None = 'und', ext: str | None = None) -> collections.abc.Callable[[list[dict]], dict[str, list[dict]]]: ...
-
-
-@typing.overload
-def subs_list_to_dict(subs: list[dict] | None, /, *, lang: str | None = 'und', ext: str | None = None) -> dict[str, list[dict]]: ...
-
-
-def subs_list_to_dict(subs: list[dict] | None = None, /, *, lang='und', ext=None):
+def subs_list_to_dict(subs=None, **kwargs):
+    lang = kwargs.get('lang', 'und')
+    ext = kwargs.get('ext')
     """
     Convert subtitles from a traversal into a subtitle dict.
     The path should have an `all` immediately before this function.
@@ -379,23 +380,14 @@ def subs_list_to_dict(subs: list[dict] | None = None, /, *, lang='und', ext=None
     return result
 
 
-@typing.overload
-def find_element(*, attr: str, value: str, tag: str | None = None, html=False, regex=False): ...
-
-
-@typing.overload
-def find_element(*, cls: str, html=False): ...
-
-
-@typing.overload
-def find_element(*, id: str, tag: str | None = None, html=False, regex=False): ...
-
-
-@typing.overload
-def find_element(*, tag: str, html=False, regex=False): ...
-
-
-def find_element(*, tag=None, id=None, cls=None, attr=None, value=None, html=False, regex=False):
+def find_element(**kwargs):
+    tag = kwargs.get('tag')
+    id = kwargs.get('id')
+    cls = kwargs.get('cls')
+    attr = kwargs.get('attr')
+    value = kwargs.get('value')
+    html = kwargs.get('html', False)
+    regex = kwargs.get('regex', False)
     # deliberately using `id=` and `cls=` for ease of readability
     assert tag or id or cls or (attr and value), 'One of tag, id, cls or (attr AND value) is required'
     ANY_TAG = r'[\w:.-]+'
@@ -421,15 +413,13 @@ def find_element(*, tag=None, id=None, cls=None, attr=None, value=None, html=Fal
     return lambda html: get_element_text_and_html_by_tag(tag, html)[index]
 
 
-@typing.overload
-def find_elements(*, cls: str, html=False): ...
-
-
-@typing.overload
-def find_elements(*, attr: str, value: str, tag: str | None = None, html=False, regex=False): ...
-
-
-def find_elements(*, tag=None, cls=None, attr=None, value=None, html=False, regex=False):
+def find_elements(**kwargs):
+    tag = kwargs.get('tag')
+    cls = kwargs.get('cls')
+    attr = kwargs.get('attr')
+    value = kwargs.get('value')
+    html = kwargs.get('html', False)
+    regex = kwargs.get('regex', False)
     # deliberately using `cls=` for ease of readability
     assert cls or (attr and value), 'One of cls or (attr AND value) is required'
 
@@ -444,7 +434,9 @@ def find_elements(*, tag=None, cls=None, attr=None, value=None, html=False, rege
     return functools.partial(func, cls)
 
 
-def trim_str(*, start=None, end=None):
+def trim_str(**kwargs):
+    start = kwargs.get('start')
+    end = kwargs.get('end')
     def trim(s):
         if s is None:
             return None
@@ -467,7 +459,7 @@ def unpack(func, **kwargs):
 
 
 def get_first(obj, *paths, **kwargs):
-    return traverse_obj(obj, *((..., *variadic(keys)) for keys in paths), **kwargs, get_all=False)
+    return traverse_obj(obj, *list((Ellipsis,) + variadic(keys) for keys in paths), **kwargs)
 
 
 def dict_get(d, key_or_keys, default=None, skip_false_values=True):

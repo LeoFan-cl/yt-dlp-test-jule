@@ -9,8 +9,6 @@ import urllib2
 from collections import Iterable, Mapping
 from email.message import Message
 
-from ..compat import compat_urllib_error
-from ..cookies import YoutubeDLCookieJar
 from ..utils import (
     bug_reports_message,
     classproperty,
@@ -124,7 +122,7 @@ class RequestDirector(object):
 
         raise UnsupportedRequest(
             'No handler is able to handle this request. The following reasons were given:\n%s'
-            % '\n'.join(f'  {error_to_str(e)}' for e in unsupported_errors),
+            % '\n'.join('  {0}'.format(error_to_str(e)) for e in unsupported_errors),
             errors=unsupported_errors)
 
 
@@ -224,6 +222,7 @@ class RequestHandler(object):
         else: headers = None
         logger = _['logger']; del _['logger']
 
+        from ..cookies import YoutubeDLCookieJar
         self._logger = logger
         self.headers = headers or {}
         self.cookiejar = cookiejar if cookiejar is not None else YoutubeDLCookieJar()
@@ -318,6 +317,7 @@ class RequestHandler(object):
 
     def _check_extensions(self, extensions):
         u"""Check extensions for unsupported extensions. Subclasses should extend this."""
+        from ..cookies import YoutubeDLCookieJar
         assert isinstance(extensions.get(u'cookiejar'), (YoutubeDLCookieJar, type(None)))
         assert isinstance(extensions.get(u'timeout'), (float, int, type(None)))
         assert isinstance(extensions.get(u'legacy_ssl'), (bool, type(None)))

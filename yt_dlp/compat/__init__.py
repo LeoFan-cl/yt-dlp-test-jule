@@ -2,11 +2,7 @@ from __future__ import absolute_import
 import os
 import xml.etree.ElementTree as etree
 
-from .compat_utils import passthrough_module
-
-passthrough_module(__name__, u'._deprecated')
-del passthrough_module
-
+from ._legacy import *
 
 # HTMLParseError has been deprecated in Python 3.3 and removed in
 # Python 3.5. Introducing dummy exception for Python >3.5 for compatible
