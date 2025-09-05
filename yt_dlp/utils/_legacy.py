@@ -9,11 +9,13 @@ from ._utils import Popen, decode_base_n, preferredencoding
 from .traversal import traverse_obj
 from ..dependencies import certifi, websockets
 from ..networking._helper import create_ssl_context as make_ssl_context
+from ..networking._urllib import HTTPHandler
 
 # isort: split
 from .networking import escape_rfc3986  # noqa: F401
 from .networking import normalize_url as escape_url
 from .networking import random_user_agent, std_headers  # noqa: F401
+from ..cookies import YoutubeDLCookieJar  # noqa: F401
 from ..networking._urllib import PUTRequest  # noqa: F401
 from ..networking._urllib import SUPPORTED_ENCODINGS, HEADRequest  # noqa: F401
 from ..networking._urllib import ProxyHandler as PerRequestProxyHandler  # noqa: F401
@@ -302,7 +304,6 @@ class YoutubeDLCookieProcessor(urllib.request.HTTPCookieProcessor):
 
 
 def make_HTTPS_handler(params, **kwargs):
-    from ..networking._urllib import HTTPHandler
     return YoutubeDLHTTPSHandler(params, context=make_ssl_context(
         verify=not params.get('nocheckcertificate'),
         client_certificate=params.get('client_certificate'),

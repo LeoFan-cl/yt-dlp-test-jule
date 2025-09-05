@@ -4,7 +4,7 @@ try:
 except ImportError:
     import collections as collections_abc
 import random
-from ..dependencies import typing
+import typing
 try:
     import urllib.parse as urllib_parse
     import urllib.request as urllib_request

@@ -11,7 +11,6 @@ import uuid
 
 from .fragment import FragmentFD
 from ..networking import Request
-from ..networking.exceptions import Features
 from ..postprocessor.ffmpeg import EXT_TO_OUT_FORMATS, FFmpegPostProcessor
 from ..utils import (
     Popen,
@@ -30,6 +29,9 @@ from ..utils import (
 )
 
 
+class Features(enum.Enum):
+    TO_STDOUT = enum.auto()
+    MULTIPLE_FORMATS = enum.auto()
 
 
 class ExternalFD(FragmentFD):

@@ -27,7 +27,7 @@ SOCKS5_USER_AUTH_VERSION = 0x01
 SOCKS5_USER_AUTH_SUCCESS = 0x00
 
 
-class Socks4Command:
+class Socks4Command(object):
     CMD_CONNECT = 0x01
     CMD_BIND = 0x02
 
@@ -36,14 +36,14 @@ class Socks5Command(Socks4Command):
     CMD_UDP_ASSOCIATE = 0x03
 
 
-class Socks5Auth:
+class Socks5Auth(object):
     AUTH_NONE = 0x00
     AUTH_GSSAPI = 0x01
     AUTH_USER_PASS = 0x02
     AUTH_NO_ACCEPTABLE = 0xFF  # For server response
 
 
-class Socks5AddressType:
+class Socks5AddressType(object):
     ATYP_IPV4 = 0x01
     ATYP_DOMAINNAME = 0x03
     ATYP_IPV6 = 0x04
@@ -55,14 +55,14 @@ class ProxyError(OSError):
     def __init__(self, code=None, msg=None):
         if code is not None and msg is None:
             msg = self.CODES.get(code) or 'unknown error'
-        super().__init__(code, msg)
+        super(ProxyError, self).__init__(code, msg)
 
 
 class InvalidVersionError(ProxyError):
     def __init__(self, expected_version, got_version):
-        msg = (f'Invalid response version from server. Expected {expected_version:02x} got '
-               f'{got_version:02x}')
-        super().__init__(0, msg)
+        msg = ('Invalid response version from server. Expected {0:02x} got '
+               '{1:02x}'.format(expected_version, got_version))
+        super(InvalidVersionError, self).__init__(0, msg)
 
 
 class Socks4Error(ProxyError):
@@ -92,7 +92,7 @@ class Socks5Error(ProxyError):
     }
 
 
-class ProxyType:
+class ProxyType(object):
     SOCKS4 = 0
     SOCKS4A = 1
     SOCKS5 = 2
@@ -105,7 +105,7 @@ Proxy = collections.namedtuple('Proxy', (
 class sockssocket(socket.socket):
     def __init__(self, *args, **kwargs):
         self._proxy = None
-        super().__init__(*args, **kwargs)
+        super(sockssocket, self).__init__(*args, **kwargs)
 
     def setproxy(self, proxytype, addr, port, rdns=True, username=None, password=None):
         assert proxytype in (ProxyType.SOCKS4, ProxyType.SOCKS4A, ProxyType.SOCKS5)
@@ -117,13 +117,13 @@ class sockssocket(socket.socket):
         while len(data) < cnt:
             cur = self.recv(cnt - len(data))
             if not cur:
-                raise EOFError(f'{cnt - len(data)} bytes missing')
+                raise EOFError('{0} bytes missing'.format(cnt - len(data)))
             data += cur
         return data
 
     def _recv_bytes(self, cnt):
         data = self.recvall(cnt)
-        return struct.unpack(f'!{cnt}B', data)
+        return struct.unpack('!{0}B'.format(cnt), data)
 
     @staticmethod
     def _len_and_data(data):
@@ -184,7 +184,7 @@ class sockssocket(socket.socket):
             auth_methods.append(Socks5Auth.AUTH_USER_PASS)
 
         packet += struct.pack('!B', len(auth_methods))
-        packet += struct.pack(f'!{len(auth_methods)}B', *auth_methods)
+        packet += struct.pack('!{0}B'.format(len(auth_methods)), *auth_methods)
 
         self.sendall(packet)
 
